@@ -3,7 +3,7 @@
 *  Author - Ashutosh Sharma
 *
 *  Last edit
-*  7 Nov, 2019 - The algorithm has been checked. 
+*  7 Nov, 2019 - The algorithm has been checked.
 *                Just need to add the movement and wall detection functions now.
 */
 
