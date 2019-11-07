@@ -1,4 +1,4 @@
-void setup() 
+void setup()
 {
   int maze[16][16] = {{14,13,12,11,10, 9, 8, 7, 7, 8, 9,10,11,12,13,14},
                       {13,12,11,10, 9, 8, 7, 6, 6, 7, 8, 9,10,11,12,13},
@@ -25,7 +25,7 @@ void setup()
   int current_column = 15;
 }
 
-void loop() 
+void loop()
 {
   while(maze[current_row][current_column]!=0)
   {
@@ -93,7 +93,7 @@ void next_square()
   }
   else if(facing==3) //down
   {
-    if(((current_row+1)<=15)&&(check_Wal_forward())) // checking if maze value exists
+    if(((current_row+1)<=15)&&(check_wall_forward())) // checking if maze value exists
     {
       forward = maze[current_row+1][current_column];
     }
@@ -120,11 +120,11 @@ void next_square()
           go_forward();
 
           // go to smallest and update value if smallest is greater than current
-          if(maze[current_row][current_column]<=forward)
+          if((maze[current_row][current_column]<=forward)||((maze[current_row][current_column]-forward)>1))
           {
             update_path(forward);
           }
-          
+
           if(facing==0) //up
           {
             current_row--;
@@ -141,71 +141,71 @@ void next_square()
           {
             current_row++;
           }
-          
+
           path += "F"
         }
         else if((right<forward)&&(right<left))
         {
           go_right();
           // go to smallest and update value if smallest is greater than current
-          if(maze[current_row][current_column]<=right)
+          if((maze[current_row][current_column]<=right)||((maze[current_row][current_column]-right)>1))
           {
             update_path(right);
           }
-          
+
           if(facing==0) //up
           {
             current_column++;
-            facing=2;
+            facing=2; //right
           }
           else if(facing==1) //left
           {
             current_row--;
-            facing=0;
+            facing=0; //up
           }
           else if(facing==2) //right
           {
             current_row++;
-            facing=3;
+            facing=3; //down
           }
           else if(facing==3) //down
           {
             current_column--;
-            facing=1;
+            facing=1; //left
           }
-          
+
           path += "R"
         }
         else if((left<forward)&&(left<right))
         {
           go_left();
           // go to smallest and update value if smallest is greater than current
-          if(maze[current_row][current_column]<=left)
+          if((maze[current_row][current_column]<=left)||((maze[current_row][current_column]-left)>1))
           {
             update_path(left);
           }
-          
+
           if(facing==0) //up
           {
             current_column--;
-            facing=1;
+            facing=1; //left
           }
           else if(facing==1) //left
           {
             current_row++;
-            facing=3;
+            facing=3; //down
           }
           else if(facing==2) //right
           {
             current_row--;
-            facing=0;
+            facing=0; //up
           }
           else if(facing==3) //down
           {
             current_column++;
-            facing=2;
+            facing=2; //right
           }
-          
+
           path += "L"
         }
         else if((right==left)&&(left<forward))
@@ -215,64 +215,64 @@ void next_square()
           {
             go_left();
             // go to smallest and update value if smallest is greater than current
-            if(maze[current_row][current_column]<=left)
+            if((maze[current_row][current_column]<=left)||((maze[current_row][current_column]-left)>1))
             {
               update_path(left);
             }
-            
+
             if(facing==0) //up
             {
               current_column--;
-              facing=1;
+              facing=1; //left
             }
             else if(facing==1) //left
             {
               current_row++;
-              facing=3;
+              facing=3; //down
             }
             else if(facing==2) //right
             {
               current_row--;
-              facing=0;
+              facing=0; //up
             }
             else if(facing==3) //down
             {
               current_column++;
-              facing=2;
+              facing=2; //right
             }
-            
+
             path += "L"
           }
           else
           {
             go_right();
             // go to smallest and update value if smallest is greater than current
-            if(maze[current_row][current_column]<=right)
+            if((maze[current_row][current_column]<=right)||((maze[current_row][current_column]-right)>1))
             {
               update_path(right);
             }
-            
+
             if(facing==0) //up
             {
               current_column++;
-              facing=2;
+              facing=2; //right
             }
             else if(facing==1) //left
             {
               current_row--;
-              facing=0;
+              facing=0; //up
             }
             else if(facing==2) //right
             {
               current_row++;
-              facing=3;
+              facing=3; //down
             }
             else if(facing==3) //down
             {
               current_column--;
-              facing=1;
+              facing=1; //left
             }
-            
+
             path += "R"
           }
         }
@@ -285,11 +285,11 @@ void next_square()
           go_forward();
 
           // go to smallest and update value if smallest is greater than current
-          if(maze[current_row][current_column]<=forward)
+          if((maze[current_row][current_column]<=forward)||((maze[current_row][current_column]-forward)>1))
           {
             update_path(forward);
           }
-          
+
           if(facing==0) //up
           {
             current_row--;
@@ -306,39 +306,39 @@ void next_square()
           {
             current_row++;
           }
-          
+
           path += "F"
         }
         else
         {
           go_left();
           // go to smallest and update value if smallest is greater than current
-          if(maze[current_row][current_column]<=left)
+          if((maze[current_row][current_column]<=left)||((maze[current_row][current_column]-left)>1))
           {
             update_path(left);
           }
-          
+
           if(facing==0) //up
           {
             current_column--;
-            facing=1;
+            facing=1; //left
           }
           else if(facing==1) //left
           {
             current_row++;
-            facing=3;
+            facing=3; //down
           }
           else if(facing==2) //right
           {
             current_row--;
-            facing=0;
+            facing=0; //up
           }
           else if(facing==3) //down
           {
             current_column++;
-            facing=2;
+            facing=2; //right
           }
-          
+
           path += "L"
         }
       }
@@ -353,11 +353,11 @@ void next_square()
           go_forward();
 
           // go to smallest and update value if smallest is greater than current
-          if(maze[current_row][current_column]<=forward)
+          if((maze[current_row][current_column]<=forward)||((maze[current_row][current_column]-forward)>1))
           {
             update_path(forward);
           }
-          
+
           if(facing==0) //up
           {
             current_row--;
@@ -374,39 +374,39 @@ void next_square()
           {
             current_row++;
           }
-          
+
           path += "F"
         }
         else
         {
           go_right();
           // go to smallest and update value if smallest is greater than current
-          if(maze[current_row][current_column]<=right)
+          if((maze[current_row][current_column]<=right)||((maze[current_row][current_column]-right)>1))
           {
             update_path(right);
           }
-          
+
           if(facing==0) //up
           {
             current_column++;
-            facing=2;
+            facing=2; //right
           }
           else if(facing==1) //left
           {
             current_row--;
-            facing=0;
+            facing=0; //up
           }
           else if(facing==2) //right
           {
             current_row++;
-            facing=3;
+            facing=3; //down
           }
           else if(facing==3) //down
           {
             current_column--;
-            facing=1;
+            facing=1; //left
           }
-          
+
           path += "R"
         }
       }
@@ -415,11 +415,11 @@ void next_square()
         go_forward();
 
         // go to smallest and update value if smallest is greater than current
-        if(maze[current_row][current_column]<=forward)
+        if((maze[current_row][current_column]<=forward)||((maze[current_row][current_column]-forward)>1))
         {
           update_path(forward);
         }
-          
+
         if(facing==0) //up
         {
           current_row--;
@@ -436,7 +436,7 @@ void next_square()
         {
           current_row++;
         }
-          
+
         path += "F"
       }
     }
@@ -452,64 +452,64 @@ void next_square()
         {
           go_right();
           // go to smallest and update value if smallest is greater than current
-          if(maze[current_row][current_column]<=right)
+          if((maze[current_row][current_column]<=right)||((maze[current_row][current_column]-right)>1))
           {
             update_path(right);
           }
-          
+
           if(facing==0) //up
           {
             current_column++;
-            facing=2;
+            facing=2; //right
           }
           else if(facing==1) //left
           {
             current_row--;
-            facing=0;
+            facing=0; //up
           }
           else if(facing==2) //right
           {
             current_row++;
-            facing=3;
+            facing=3; //down
           }
           else if(facing==3) //down
           {
             current_column--;
-            facing=1;
+            facing=1; //left
           }
-          
+
           path += "R"
         }
         else if(left<right)
         {
           go_left();
           // go to smallest and update value if smallest is greater than current
-          if(maze[current_row][current_column]<=left)
+          if((maze[current_row][current_column]<=left)||((maze[current_row][current_column]-left)>1))
           {
             update_path(left);
           }
-          
+
           if(facing==0) //up
           {
             current_column--;
-            facing=1;
+            facing=1; //left
           }
           else if(facing==1) //left
           {
             current_row++;
-            facing=3;
+            facing=3; //down
           }
           else if(facing==2) //right
           {
             current_row--;
-            facing=0;
+            facing=0; //up
           }
           else if(facing==3) //down
           {
             current_column++;
-            facing=2;
+            facing=2; //right
           }
-          
+
           path += "L"
         }
         else
@@ -519,64 +519,64 @@ void next_square()
           {
             go_left();
             // go to smallest and update value if smallest is greater than current
-            if(maze[current_row][current_column]<=left)
+            if((maze[current_row][current_column]<=left)||((maze[current_row][current_column]-left)>1))
             {
               update_path(left);
             }
-            
+
             if(facing==0) //up
             {
               current_column--;
-              facing=1;
+              facing=1; //left
             }
             else if(facing==1) //left
             {
               current_row++;
-              facing=3;
+              facing=3; //down
             }
             else if(facing==2) //right
             {
               current_row--;
-              facing=0;
+              facing=0; //up
             }
             else if(facing==3) //down
             {
               current_column++;
-              facing=2;
+              facing=2; //right
             }
-            
+
             path += "L"
           }
           else
           {
             go_right();
             // go to smallest and update value if smallest is greater than current
-            if(maze[current_row][current_column]<=right)
+            if((maze[current_row][current_column]<=right)||((maze[current_row][current_column])-right>1))
             {
               update_path(right);
             }
-            
+
             if(facing==0) //up
             {
               current_column++;
-              facing=2;
+              facing=2; //right
             }
             else if(facing==1) //left
             {
               current_row--;
-              facing=0;
+              facing=0; //up
             }
             else if(facing==2) //right
             {
               current_row++;
-              facing=3;
+              facing=3; //down
             }
             else if(facing==3) //down
             {
               current_column--;
-              facing=1;
+              facing=1; //left
             }
-            
+
             path += "R"
           }
         }
@@ -585,32 +585,32 @@ void next_square()
       {
         go_left();
         // go to smallest and update value if smallest is greater than current
-        if(maze[current_row][current_column]<=left)
+        if((maze[current_row][current_column]<=left)||((maze[current_row][current_column]-left)>1))
         {
           update_path(left);
         }
-        
+
         if(facing==0) //up
         {
           current_column--;
-          facing=1;
+          facing=1; //left
         }
         else if(facing==1) //left
         {
           current_row++;
-          facing=3;
+          facing=3; //down
         }
         else if(facing==2) //right
         {
           current_row--;
-          facing=0;
+          facing=0; //up
         }
         else if(facing==3) //down
         {
           current_column++;
-          facing=2;
+          facing=2; //right
         }
-        
+
         path += "L"
       }
     }
@@ -620,40 +620,41 @@ void next_square()
       {
         go_right();
         // go to smallest and update value if smallest is greater than current
-        if(maze[current_row][current_column]<=right)
+        if((maze[current_row][current_column]<=right)||((maze[current_row][current_column]-right)>1))
         {
           update_path(right);
         }
-        
+
         if(facing==0) //up
         {
           current_column++;
-          facing=2;
+          facing=2; //right
         }
         else if(facing==1) //left
         {
           current_row--;
-          facing=0;
+          facing=0; //left
         }
         else if(facing==2) //right
         {
           current_row++;
-          facing=3;
+          facing=3; //down
         }
         else if(facing==3) //down
         {
           current_column--;
-          facing=1;
+          facing=1; //left
         }
-        
+
         path += "R"
       }
       else
       {
         go_back();
-        
+
         // no need to update path since going back
-        
+        maze[current_row][current_column] = -1;
+
         if(facing==0) //up
         {
           current_row++;
@@ -670,7 +671,7 @@ void next_square()
         {
           current_row--;
         }
-        
+
         path = substring(0, path.length());
       }
     }
@@ -681,52 +682,52 @@ void update_path(int value)
   int row = current_row;
   int column = current_column;
   int face = facing; // 0 for up; 1 for left; 2 for right; 3 for down
-  
+
   for(int i = (path.length()-1); i>=0; i--)
   {
     value++;
-    
+
     maze[row][column] = value;
-    
+
     if(path.charAt(i)=='F')
     {
-      if(face==0)
+      if(face==0) //up
       {
         row++;
       }
-      else if(face==1)
+      else if(face==1) //left
       {
         column++;
       }
-      else if(face==2)
+      else if(face==2) //right
       {
         column--;
       }
-      else if(face==3)
+      else if(face==3) //down
       {
         row--;
       }
     }
     else if(path.charAt(i)=='R')
     {
-      if(face==0)
-      {
-        column++;
-        face=1;
-      }
-      else if(face==1)
-      {
-        row--;
-        face=3;
-      }
-      else if(face==2)
+      if(face==0) //up
       {
         row++;
-        face=0;
+        face=1;
       }
-      else if(face==3)
+      else if(face==1) //left
+      {
+        column++;
+        face=3;
+      }
+      else if(face==2) //right
       {
         column--;
+        face=0;
+      }
+      else if(face==3) //down
+      {
+        row--;
         face=2;
       }
     }
@@ -734,55 +735,59 @@ void update_path(int value)
     {
       if(face==0)
       {
-        column--;
+        row++;
         face=2;
       }
       else if(face==1)
       {
-        row++;
+        column++;
         face=0;
       }
       else if(face==2)
       {
-        row--;
+        column--;
         face=3;
       }
       else if(face==3)
       {
-        column++;
+        row--;
         face=1;
       }
     }
-    
   }
 }
+
 void check_wall_forward()
 {
   // check forward using IR
   // return false if wall or -1
   // return true if possible to go there
 }
+
 void check_wall_left()
 {
   // check left using IR
   // return false if wall or -1
   // return true if possible to go there
 }
+
 void check_wall_right()
 {
-  
   // check right using IR
   // return false if wall or -1
   // return true if possible to go there
 }
+
 void go_forward()
 {
   //go forward one step
 }
+
 void go_right()
 {
   // turn right and go one block ahead
 }
+
 void go_left()
 {
   // turn left and go one block ahead
