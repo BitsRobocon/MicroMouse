@@ -979,20 +979,111 @@ bool check_wall_right()
 
 void go_forward()
 {
-  //go forward one block
+    //go forward one block
+    int a;                                     //Flag to check if Rmotor has moved by 16cm
+    int b;                                     //Flag to check if Lmotor has moved by 16cm
+    while(a+b<2)
+    {
+        if(a!=1)
+        {
+            digitalWrite(rm1,HIGH); //Move forward until 16cm moved 
+            digitalWrite(rm2,LOW);
+        }
+        if(b!=1)
+        {
+           digitalWrite(lm1,HIGH); //Move fwd until 16cm moved
+           digitalWrite(lm2,LOW);
+        }
+        if(encoder_right()%160==0) // Flag to check if the mouse has moved 16 cm
+        {
+            a=1;
+        }
+        if(encoder_left()%160==0)
+        {
+            b=1;
+        }
+    }
 }
 
 void go_right()
 {
-  // turn right and go one block ahead
+    // turn right and go one block ahead
+    // need to do some axis checking with maze and edit
+    //
+    //   Distance between centres of the 2 wheels~~101mm
+    //   Quarter circle traversed by each wheel=pi*50.5/2=79.32mm
+    //
+    int a;
+    while(a<1)
+    {
+          if(a!=1)
+          {
+                digitalWrite(rm1,LOW);
+                digitalWrite(rm2,HIGH);
+                digitalWrite(lm1,HIGH);
+                digitalWrite(lm2,LOW);
+          }
+          if(encoder_right()%79==0)
+          {
+                a=1;
+          }
+     }
 }
 
 void go_left()
 {
-  // turn left and go one block ahead
+    // turn left and go one block ahead
+    // need to do some axis checking with maze and edit
+    //
+    //   Distance between centres of the 2 wheels~~101mm
+    //   Quarter circle traversed by each wheel=pi*50.5/2=79.32mm
+    //
+    int a;
+    while(a<1)
+    {
+          if(a!=1)
+          {
+                digitalWrite(rm1,HIGH);
+                digitalWrite(rm2,LOW);
+                digitalWrite(lm1,LOW);
+                digitalWrite(lm2,HIGH);
+          }
+          if(encoder_left()%79==0)
+          {
+                a=1;
+          }
+     }
 }
 
 void go_back()
 {
   // reverse the previous step
+}
+
+int encoder_left()
+{
+      // returns the distance as recorded by the left encoder
+      if(digitalRead(le1) == HIGH)
+      {
+        b++;
+      }
+      if (digitalRead(le1) == LOW)
+      {
+        b--;
+      }
+      return ((b/205)*pi*30);
+}
+
+int encoder_right()
+{
+      // returns the distance as recorded by the right encoder
+      if(digitalRead(re1) == HIGH)                   //ISR for right motor
+      {
+          a++;                                            //Only 1 interrupt used as 2nd interrupt was adding to redundacy
+      }
+      if(digitalRead(re1) == LOW)
+      {
+          a--;                                            //a keeps track of the rotary motion of the right encoder
+      }
+      return ((a/205)*pi*30);                              //distance travelled by right motor in mm
 }
