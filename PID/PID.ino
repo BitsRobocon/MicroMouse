@@ -1,18 +1,18 @@
 /*PID.ino
- *Last updated:9/11/19
+ *Last updated:10/11/19
  *Author: Hardik
  *CoAuthor: Ashutosh
  */
 
 # define error_threshold                   //To be defined error of threshold
-void drive_straight( int leftsensor,  int rightsensor) //To be included in Forward
+void drive_straight( double distance_left, double distance_right) //To be included in Forward
 {
   static int previous_error = 0;
   static int Kp = 16, Ki = 1, Kd = 4;      // constants for scaling P I D effects (will need adjusting)
   static int error, P, I = 0,  D;          // error variables
   int total;
 
-  error = rightsensor - leftsensor;
+  error = (int)(distance_right - distance_left);
   if(error<error_threshold)
     {
       P = error * Kp;
