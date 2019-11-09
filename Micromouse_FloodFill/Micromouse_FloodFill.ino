@@ -4,7 +4,7 @@
 *  Co Author - Hardik Jain (nepython)
 *
 *  Last edit
-*  7 Nov, 2019 - The algorithm has been checked and wall detection functions added(need checking)
+*  10 Nov, 2019 - The algorithm has been checked and wall detection functions added(need checking)
 *                Just need to add the movement functions now.
 */
 
@@ -64,6 +64,9 @@
     #define THRESHOLD_FORWARD 8 // the threshold to check if wall present forward
     #define THRESHOLD_LEFT 6 // the threshold to check if wall present left
     #define THRESHOLD_RIGHT 6 // the threshold to check if wall present right
+
+    static double distance_left=0;  //Converted to global variable as reading required by PID
+    static double distance_right=0; //Right IR distance measured
 
     #define FRONT_BACK_BLOCK_DISTANCE 160 // distance to move front and back in mm
     #define LEFT_RIGHT_BLOCK_DISTANCE 80 // distance to move after turning in mm
@@ -921,9 +924,9 @@ bool check_wall_left()
   // check left using IR
   // return false if wall or -1
   // return true if possible to go there
-  double distance = 12.08 * pow(analogRead(LEFT_IR_PIN) , -1.058) * 250; // Specific for the model of IR being used
+  distance_left = 12.08 * pow(analogRead(LEFT_IR_PIN) , -1.058) * 250; // Specific for the model of IR being used
 
-  if(distance<THRESHOLD_LEFT) // there is no wall
+  if(distance_left<THRESHOLD_LEFT) // there is no wall
   {
     if(facing==0) // up
     {
@@ -981,9 +984,9 @@ bool check_wall_right()
   // check right using IR
   // return false if wall or -1
   // return true if possible to go there
-  double distance = 12.08 * pow(analogRead(RIGHT_IR_PIN) , -1.058) * 250; // Specific for the model of IR being used
+  distance_right = 12.08 * pow(analogRead(RIGHT_IR_PIN) , -1.058) * 250; // Specific for the model of IR being used
 
-  if(distance<THRESHOLD_RIGHT) // there is no wall
+  if(distance_right<THRESHOLD_RIGHT) // there is no wall
   {
     if(facing==0) // up
     {
