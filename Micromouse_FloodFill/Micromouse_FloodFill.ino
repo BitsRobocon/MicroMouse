@@ -1,6 +1,7 @@
 /*
 *  This is the main file for the algorithm.
-*  Author - Ashutosh Sharma
+*  Author - Ashutosh Sharma (ashutoshshrm529)
+*  Co Author - Hardik Jain (nepython)
 *
 *  Last edit
 *  7 Nov, 2019 - The algorithm has been checked and wall detection functions added(need checking)
