@@ -1,6 +1,7 @@
 /*
 *  This is the main file for the algorithm.
-*  Author - Ashutosh Sharma
+*  Author - Ashutosh Sharma (ashutoshshrm529)
+*  Co Author - Hardik Jain (nepython)
 *
 *  Last edit
 *  7 Nov, 2019 - The algorithm has been checked and wall detection functions added(need checking)
@@ -13,13 +14,21 @@
 //  FLOODFILL
     void next_square(); // finds the next square using floodfill and takes the mouse there.
     void update_path(int ); // updates the path as necessary by the floodfill algorithm
+
+//  WALL DETECTION
     bool check_wall_forward(); // checks if mouse can go forward. Returns TRUE if it can else false.
     bool check_wall_left(); // checks if mouse can go left. Returns TRUE if it can else false.
     bool check_wall_right(); // checks if mouse can go right. Returns TRUE if it can else false.
-    void go_forward(); // makes the mouse go one block forward
-    void go_right(); // turns the mouse and goes to the block right of current position
-    void go_left(); // turns the mouse and goes to the block left of current position
-    void go_back(); // makes the mouse reverse the previous step
+
+//  MOTOR
+    void go_forward(int ); // makes the mouse go one block forward
+    void turn_right(); // turns the mouse a quarter circle to right
+    void turn_left(); // turns the mouse and goes to the block left of current position
+    void go_backward(int ); // makes the mouse reverse the previous step
+
+//  ENCODER
+    int encoder_right();
+    int encoder_left();
 
 //
 // GLOBAL VARIABLES
@@ -56,26 +65,61 @@
     #define THRESHOLD_LEFT 6 // the threshold to check if wall present left
     #define THRESHOLD_RIGHT 6 // the threshold to check if wall present right
 
+    #define FRONT_BACK_BLOCK_DISTANCE 160 // distance to move front and back in mm
+    #define LEFT_RIGHT_BLOCK_DISTANCE 80 // distance to move after turning in mm
+
+// MOTOR
+    #define RIGHT_MOTOR_1 5 // pin 1 for right motor
+    #define RIGHT_MOTOR_2 4 // pin 2 for right motor
+    #define LEFT_MOTOR_1 9 // pin 1 for left motor
+    #define LEFT_MOTOR_2 52 // pin 2 for left motor
+
+// ENCODER
+    #define RIGHT_ENCODER_DISTANCE 2 // pin for checking distance using right encoder
+    #define RIGHT_ENCODER_DIRECTION 3 // pin for checking direction of right encoder
+    #define LEFT_ENCODER_DISTANCE 18 // pin for checking distance using left encoder
+    #define LEFT_ENCODER_DIRECTION 19 // pin for checking direction of left encoder
+    volatile int right_value=0; // reads right encoder value
+    volatile int left_value=0; // reads left encoder value
+    #define Pi 3.14159
+
 void setup()
 {
-  // WALL DETECTION
+    // WALL DETECTION
     pinMode(FRONT_IR_PIN,INPUT);
     pinMode(LEFT_IR_PIN,INPUT);
     pinMode(RIGHT_IR_PIN,INPUT);
+
+    // MOTOR
+    pinMode(RIGHT_MOTOR_1, OUTPUT);
+    pinMode(LEFT_MOTOR_1, OUTPUT);
+    pinMode(RIGHT_MOTOR_2, OUTPUT);
+    pinMode(LEFT_MOTOR_2, OUTPUT);
+
+    // ENCODER
+    attachInterrupt(digitalPinToInterrupt(RIGHT_ENCODER_DISTANCE),encoder_right,RISING );
+    // attachInterrupt(digitalPinToInterrupt(RIGHT_ENCODER_DIRECTION),inr,RISING );
+    attachInterrupt(digitalPinToInterrupt(LEFT_ENCODER_DISTANCE),encoder_left,RISING );
+    // attachInterrupt(digitalPinToInterrupt(LEFT_ENCODER_DIRECTION),inr,RISING );
 }
 
 void loop()
 {
-  while(maze[current_row][current_column]!=0)
-  {
+    // keep going to next block using floodfill until maze center
+    while(maze[current_row][current_column]!=0)
+    {
     next_square();
-  }
+    }
 
-  // turn 180 degrees
+    // turn 180 degrees
+    turn_right();
+    turn_right();
 
-  // follow path backwards
+    // follow path backwards
 
-  // turn 180 degrees
+    // turn 180 degrees
+    turn_right();
+    turn_right();
 }
 
 void next_square()
@@ -156,7 +200,7 @@ void next_square()
         // check smallest value from forward, left and right
         if(((forward<right)&&(forward<left))||((forward==left)&&(forward<right))||((forward==right)&&(forward<left))||((right==left)&&(left==forward)))
         {
-          go_forward();
+          go_forward(FRONT_BACK_BLOCK_DISTANCE);
 
           // go to smallest and update value if smallest is greater than current
           if((maze[current_row][current_column]<=forward)||((maze[current_row][current_column]-forward)>1))
@@ -185,7 +229,7 @@ void next_square()
         }
         else if((right<forward)&&(right<left))
         {
-          go_right();
+          turn_right();
           // go to smallest and update value if smallest is greater than current
           if((maze[current_row][current_column]<=right)||((maze[current_row][current_column]-right)>1))
           {
@@ -217,7 +261,7 @@ void next_square()
         }
         else if((left<forward)&&(left<right))
         {
-          go_left();
+          turn_left();
           // go to smallest and update value if smallest is greater than current
           if((maze[current_row][current_column]<=left)||((maze[current_row][current_column]-left)>1))
           {
@@ -252,7 +296,7 @@ void next_square()
           // go random in left or right
           if(random(2)==0)
           {
-            go_left();
+            turn_left();
             // go to smallest and update value if smallest is greater than current
             if((maze[current_row][current_column]<=left)||((maze[current_row][current_column]-left)>1))
             {
@@ -284,7 +328,7 @@ void next_square()
           }
           else
           {
-            go_right();
+            turn_right();
             // go to smallest and update value if smallest is greater than current
             if((maze[current_row][current_column]<=right)||((maze[current_row][current_column]-right)>1))
             {
@@ -321,7 +365,7 @@ void next_square()
         // check smallest value from forward and left
         if((forward<left)||(forward==left))
         {
-          go_forward();
+          go_forward(FRONT_BACK_BLOCK_DISTANCE);
 
           // go to smallest and update value if smallest is greater than current
           if((maze[current_row][current_column]<=forward)||((maze[current_row][current_column]-forward)>1))
@@ -350,7 +394,7 @@ void next_square()
         }
         else
         {
-          go_left();
+          turn_left();
           // go to smallest and update value if smallest is greater than current
           if((maze[current_row][current_column]<=left)||((maze[current_row][current_column]-left)>1))
           {
@@ -389,7 +433,7 @@ void next_square()
         // check smallest value from forward and right
         if((forward<right)||(forward==right))
         {
-          go_forward();
+          go_forward(FRONT_BACK_BLOCK_DISTANCE);
 
           // go to smallest and update value if smallest is greater than current
           if((maze[current_row][current_column]<=forward)||((maze[current_row][current_column]-forward)>1))
@@ -418,7 +462,7 @@ void next_square()
         }
         else
         {
-          go_right();
+          turn_right();
           // go to smallest and update value if smallest is greater than current
           if((maze[current_row][current_column]<=right)||((maze[current_row][current_column]-right)>1))
           {
@@ -451,7 +495,7 @@ void next_square()
       }
       else
       {
-        go_forward();
+        go_forward(FRONT_BACK_BLOCK_DISTANCE);
 
         // go to smallest and update value if smallest is greater than current
         if((maze[current_row][current_column]<=forward)||((maze[current_row][current_column]-forward)>1))
@@ -489,7 +533,7 @@ void next_square()
         // check smallest value from right and left
         if(right<left)
         {
-          go_right();
+          turn_right();
           // go to smallest and update value if smallest is greater than current
           if((maze[current_row][current_column]<=right)||((maze[current_row][current_column]-right)>1))
           {
@@ -521,7 +565,7 @@ void next_square()
         }
         else if(left<right)
         {
-          go_left();
+          turn_left();
           // go to smallest and update value if smallest is greater than current
           if((maze[current_row][current_column]<=left)||((maze[current_row][current_column]-left)>1))
           {
@@ -556,7 +600,7 @@ void next_square()
           // go random in left or right
           if(random(2)==0)
           {
-            go_left();
+            turn_left();
             // go to smallest and update value if smallest is greater than current
             if((maze[current_row][current_column]<=left)||((maze[current_row][current_column]-left)>1))
             {
@@ -588,7 +632,7 @@ void next_square()
           }
           else
           {
-            go_right();
+            turn_right();
             // go to smallest and update value if smallest is greater than current
             if((maze[current_row][current_column]<=right)||((maze[current_row][current_column])-right>1))
             {
@@ -622,7 +666,7 @@ void next_square()
       }
       else
       {
-        go_left();
+        turn_left();
         // go to smallest and update value if smallest is greater than current
         if((maze[current_row][current_column]<=left)||((maze[current_row][current_column]-left)>1))
         {
@@ -657,7 +701,7 @@ void next_square()
     {
       if(right!=-1)
       {
-        go_right();
+        turn_right();
         // go to smallest and update value if smallest is greater than current
         if((maze[current_row][current_column]<=right)||((maze[current_row][current_column]-right)>1))
         {
@@ -689,9 +733,26 @@ void next_square()
       }
       else
       {
-        go_back();
+        // reverse previous step
+        if(path.charAt(path.length()-1)=='F')
+        {
+            go_backward(FRONT_BACK_BLOCK_DISTANCE);
+        }
+        else if(path.charAt(path.length()-1)=='L')
+        {
+            go_backward(LEFT_RIGHT_BLOCK_DISTANCE);
+            turn_right();
+        }
+        else if(path.charAt(path.length()-1)=='R')
+        {
+            go_backward(LEFT_RIGHT_BLOCK_DISTANCE);
+            turn_left();
+        }
 
-        // no need to update path since going back
+        // delete path since going back
+        path = path.substring(0, path.length());
+
+        // curretn position of maze = -1
         maze[current_row][current_column] = -1;
 
         if(facing==0) //up
@@ -710,8 +771,6 @@ void next_square()
         {
           current_row--;
         }
-
-        path = path.substring(0, path.length());
       }
     }
   }
@@ -979,35 +1038,35 @@ bool check_wall_right()
   }
 }
 
-void go_forward()
+void go_forward(int distance)
 {
-    //go forward one block
-    int a;                                     //Flag to check if Rmotor has moved by 16cm
-    int b;                                     //Flag to check if Lmotor has moved by 16cm
-    while(a+b<2)
+    // go forward by distance
+    int right_flag; // Flag to check if Right motor has moved the distance
+    int left_flag; // Flag to check if Left motor has moved the distance
+    while(right_flag+left_flag<2)
     {
-        if(a!=1)
+        if(right_flag!=1)
         {
-            digitalWrite(rm1,HIGH); //Move forward until 16cm moved 
-            digitalWrite(rm2,LOW);
+            digitalWrite(RIGHT_MOTOR_1,HIGH); // Move forward until distance moved
+            digitalWrite(RIGHT_MOTOR_2,LOW);
         }
-        if(b!=1)
+        if(left_flag!=1)
         {
-           digitalWrite(lm1,HIGH); //Move fwd until 16cm moved
-           digitalWrite(lm2,LOW);
+           digitalWrite(LEFT_MOTOR_1,HIGH); // Move forward until distance moved
+           digitalWrite(LEFT_MOTOR_2,LOW);
         }
-        if(encoder_right()%160==0) // Flag to check if the mouse has moved 16 cm
+        if(encoder_right()%distance==0) // Flag to check if the mouse has moved given distance
         {
-            a=1;
+            right_flag=1;
         }
-        if(encoder_left()%160==0)
+        if(encoder_left()%distance==0)
         {
-            b=1;
+            left_flag=1;
         }
     }
 }
 
-void go_right()
+void turn_right()
 {
     // turn right and go one block ahead
     // need to do some axis checking with maze and edit
@@ -1015,24 +1074,24 @@ void go_right()
     //   Distance between centres of the 2 wheels~~101mm
     //   Quarter circle traversed by each wheel=pi*50.5/2=79.32mm
     //
-    int a;
-    while(a<1)
+    int flag;
+    while(flag<1)
     {
-          if(a!=1)
+          if(flag!=1)
           {
-                digitalWrite(rm1,LOW);
-                digitalWrite(rm2,HIGH);
-                digitalWrite(lm1,HIGH);
-                digitalWrite(lm2,LOW);
+                digitalWrite(RIGHT_MOTOR_1,LOW);
+                digitalWrite(RIGHT_MOTOR_2,HIGH);
+                digitalWrite(LEFT_MOTOR_1,HIGH);
+                digitalWrite(LEFT_MOTOR_2,LOW);
           }
           if(encoder_right()%79==0)
           {
-                a=1;
+                flag=1;
           }
      }
 }
 
-void go_left()
+void turn_left()
 {
     // turn left and go one block ahead
     // need to do some axis checking with maze and edit
@@ -1040,52 +1099,75 @@ void go_left()
     //   Distance between centres of the 2 wheels~~101mm
     //   Quarter circle traversed by each wheel=pi*50.5/2=79.32mm
     //
-    int a;
-    while(a<1)
+    int flag;
+    while(flag<1)
     {
-          if(a!=1)
+          if(flag!=1)
           {
-                digitalWrite(rm1,HIGH);
-                digitalWrite(rm2,LOW);
-                digitalWrite(lm1,LOW);
-                digitalWrite(lm2,HIGH);
+                digitalWrite(RIGHT_MOTOR_1,HIGH);
+                digitalWrite(RIGHT_MOTOR_2,LOW);
+                digitalWrite(LEFT_MOTOR_1,LOW);
+                digitalWrite(LEFT_MOTOR_2,HIGH);
           }
           if(encoder_left()%79==0)
           {
-                a=1;
+                flag=1;
           }
      }
 }
 
-void go_back()
+void go_backward(int distance)
 {
-  // reverse the previous step
+    // go backward by distance
+    int right_flag; // Flag to check if Right motor has moved the distance
+    int left_flag; // Flag to check if Left motor has moved the distance
+    while(right_flag+left_flag<2)
+    {
+        if(right_flag!=1)
+        {
+            digitalWrite(RIGHT_MOTOR_1,LOW); // Move backward until distance moved
+            digitalWrite(RIGHT_MOTOR_2,HIGH);
+        }
+        if(left_flag!=1)
+        {
+           digitalWrite(LEFT_MOTOR_1,LOW); // Move backward until distance moved
+           digitalWrite(LEFT_MOTOR_2,HIGH);
+        }
+        if(encoder_right()%distance==0) // Flag to check if the mouse has moved given distance
+        {
+            right_flag=1;
+        }
+        if(encoder_left()%distance==0)
+        {
+            left_flag=1;
+        }
+    }
 }
 
 int encoder_left()
 {
       // returns the distance as recorded by the left encoder
-      if(digitalRead(le1) == HIGH)
+      if(digitalRead(LEFT_ENCODER_DISTANCE) == HIGH) // ISR for left motor
       {
-        b++;
+          left_value++;
       }
-      if (digitalRead(le1) == LOW)
+      if (digitalRead(LEFT_ENCODER_DISTANCE) == LOW)
       {
-        b--;
+          left_value--; // Only 1 interrupt used as 2nd interrupt was adding to redundancy
       }
-      return ((b/205)*pi*30);
+      return ((left_value/205)*Pi*30); // distance travelled by left motor in mm
 }
 
 int encoder_right()
 {
       // returns the distance as recorded by the right encoder
-      if(digitalRead(re1) == HIGH)                   //ISR for right motor
+      if(digitalRead(RIGHT_ENCODER_DISTANCE) == HIGH) // ISR for right motor
       {
-          a++;                                            //Only 1 interrupt used as 2nd interrupt was adding to redundacy
+          right_value++; // Only 1 interrupt used as 2nd interrupt was adding to redundancy
       }
-      if(digitalRead(re1) == LOW)
+      if(digitalRead(RIGHT_ENCODER_DISTANCE) == LOW)
       {
-          a--;                                            //a keeps track of the rotary motion of the right encoder
+          right_value--; // a keeps track of the rotary motion of the right encoder
       }
-      return ((a/205)*pi*30);                              //distance travelled by right motor in mm
+      return ((right_value/205)*Pi*30); // distance travelled by right motor in mm
 }
