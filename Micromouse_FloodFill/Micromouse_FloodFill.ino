@@ -1,12 +1,13 @@
-/*
-*  This is the main file for the algorithm.
-*  Author - Ashutosh Sharma (ashutoshshrm529)
-*  Co Author - Hardik Jain (nepython)
-*
-*  Last edit
-*  10 Nov, 2019 - The algorithm has been checked and wall detection functions added(need checking)
-*                Just need to add the movement functions now.
-*/
+//
+// This is the main file for the algorithm.
+// Author - Ashutosh Sharma (ashutoshshrm529)
+// Co Author - Hardik Jain (nepython)
+//
+// Last edit
+// 10 Nov, 2019 - Need to edit the turning functions. Everything else sholud be working.
+//                Corrected some major mistakes.
+
+//
 
 //
 // FUNCTIONS
@@ -25,10 +26,6 @@
     void turn_right(); // turns the mouse a quarter circle to right
     void turn_left(); // turns the mouse and goes to the block left of current position
     void go_backward(int ); // makes the mouse reverse the previous step
-
-//MOTOR ENABLE VALUES
-    int L_MOTOR_val; //used for PID of left motor
-    int R_MOTOR_val; //used for PID of right motor
 
 //  ENCODER
     int encoder_right();
@@ -81,13 +78,18 @@
     #define LEFT_MOTOR_1 9 // pin 1 for left motor
     #define LEFT_MOTOR_2 52 // pin 2 for left motor
 
+    int LEFT_MOTOR_VALUE; // used for PID of left motor
+    int RIGHT_MOTOR_VALUE; // used for PID of right motor
+
 // ENCODER
     #define RIGHT_ENCODER_DISTANCE 2 // pin for checking distance using right encoder
     #define RIGHT_ENCODER_DIRECTION 3 // pin for checking direction of right encoder
     #define LEFT_ENCODER_DISTANCE 18 // pin for checking distance using left encoder
     #define LEFT_ENCODER_DIRECTION 19 // pin for checking direction of left encoder
+
     volatile int right_value=0; // reads right encoder value
     volatile int left_value=0; // reads left encoder value
+
     #define Pi 3.14159
 
 void setup()
@@ -237,6 +239,7 @@ void next_square()
         else if((right<forward)&&(right<left))
         {
           turn_right();
+          go_forward(LEFT_RIGHT_BLOCK_DISTANCE);
           // go to smallest and update value if smallest is greater than current
           if((maze[current_row][current_column]<=right)||((maze[current_row][current_column]-right)>1))
           {
@@ -269,6 +272,7 @@ void next_square()
         else if((left<forward)&&(left<right))
         {
           turn_left();
+          go_forward(LEFT_RIGHT_BLOCK_DISTANCE);
           // go to smallest and update value if smallest is greater than current
           if((maze[current_row][current_column]<=left)||((maze[current_row][current_column]-left)>1))
           {
@@ -304,6 +308,7 @@ void next_square()
           if(random(2)==0)
           {
             turn_left();
+            go_forward(LEFT_RIGHT_BLOCK_DISTANCE);
             // go to smallest and update value if smallest is greater than current
             if((maze[current_row][current_column]<=left)||((maze[current_row][current_column]-left)>1))
             {
@@ -336,6 +341,7 @@ void next_square()
           else
           {
             turn_right();
+            go_forward(LEFT_RIGHT_BLOCK_DISTANCE);
             // go to smallest and update value if smallest is greater than current
             if((maze[current_row][current_column]<=right)||((maze[current_row][current_column]-right)>1))
             {
@@ -402,6 +408,7 @@ void next_square()
         else
         {
           turn_left();
+          go_forward(LEFT_RIGHT_BLOCK_DISTANCE);
           // go to smallest and update value if smallest is greater than current
           if((maze[current_row][current_column]<=left)||((maze[current_row][current_column]-left)>1))
           {
@@ -470,6 +477,7 @@ void next_square()
         else
         {
           turn_right();
+          go_forward(LEFT_RIGHT_BLOCK_DISTANCE);
           // go to smallest and update value if smallest is greater than current
           if((maze[current_row][current_column]<=right)||((maze[current_row][current_column]-right)>1))
           {
@@ -541,6 +549,7 @@ void next_square()
         if(right<left)
         {
           turn_right();
+          go_forward(LEFT_RIGHT_BLOCK_DISTANCE);
           // go to smallest and update value if smallest is greater than current
           if((maze[current_row][current_column]<=right)||((maze[current_row][current_column]-right)>1))
           {
@@ -573,6 +582,7 @@ void next_square()
         else if(left<right)
         {
           turn_left();
+          go_forward(LEFT_RIGHT_BLOCK_DISTANCE);
           // go to smallest and update value if smallest is greater than current
           if((maze[current_row][current_column]<=left)||((maze[current_row][current_column]-left)>1))
           {
@@ -608,6 +618,7 @@ void next_square()
           if(random(2)==0)
           {
             turn_left();
+            go_forward(LEFT_RIGHT_BLOCK_DISTANCE);
             // go to smallest and update value if smallest is greater than current
             if((maze[current_row][current_column]<=left)||((maze[current_row][current_column]-left)>1))
             {
@@ -640,6 +651,7 @@ void next_square()
           else
           {
             turn_right();
+            go_forward(LEFT_RIGHT_BLOCK_DISTANCE);
             // go to smallest and update value if smallest is greater than current
             if((maze[current_row][current_column]<=right)||((maze[current_row][current_column])-right>1))
             {
@@ -674,6 +686,7 @@ void next_square()
       else
       {
         turn_left();
+        go_forward(LEFT_RIGHT_BLOCK_DISTANCE);
         // go to smallest and update value if smallest is greater than current
         if((maze[current_row][current_column]<=left)||((maze[current_row][current_column]-left)>1))
         {
@@ -709,6 +722,7 @@ void next_square()
       if(right!=-1)
       {
         turn_right();
+        go_forward(LEFT_RIGHT_BLOCK_DISTANCE);
         // go to smallest and update value if smallest is greater than current
         if((maze[current_row][current_column]<=right)||((maze[current_row][current_column]-right)>1))
         {
@@ -1045,53 +1059,30 @@ bool check_wall_right()
   }
 }
 
-void go_forward(int distance)                // go forward by distance
+void go_forward(int distance)
 {
-    int right_flag; // Flag to check if Right motor has moved the distance
-    int left_flag;  // Flag to check if Left motor has moved the distance
-    
-    static int previous_error = 0;
-    static int Kp = 16, Ki = 1, Kd = 4;      // constants for scaling P I D effects (will need adjusting)
-    static int error, P, I = 0,  D;          // error variables
-    int total;
-    
+    // go forward by distance
+    int right_flag = 0; // Flag to check if Right motor has moved the distance
+    int left_flag = 0; // Flag to check if Left motor has moved the Distance
+    left_value = 0;
+    right_value = 0;
     while(right_flag+left_flag<2)
-    { 
-        
-      check_wall_right();  //update right distance
-      check_wall_left();   //update left distance
-        
-      error = (int)(distance_right - distance_left);
-      if(error<error_threshold)
-      {
-        P = error * Kp;
-        I = (I + error)*Ki;
-        D = (error - previous_error) * Kd;                   // may take out
-        previous_error = error;
-
-        total = (P+I+D);
-        L_MOTOR_val -= (total);
-        L_MOTOR_val = constrain(L_enable_val, 120, 255)   // may need to adjust
-
-        R_MOTOR_val += (total);
-        R_MOTOR_val = constrain(R_MOTOR_val, 120, 255);
-        
+    {
         if(right_flag!=1)
         {
-            analogWrite(RIGHT_MOTOR_1, R_MOTOR_val); // Move forward until distance moved
+            digitalWrite(RIGHT_MOTOR_1,HIGH); // Move forward until distance moved
             digitalWrite(RIGHT_MOTOR_2,LOW);
         }
         if(left_flag!=1)
         {
-           analogWrite(LEFT_MOTOR_1, L_MOTOR_val);            // MOTOR pins and values
-                                                              // must be global 
-           digitalWrite(LEFT_MOTOR_2,LOW);                    // Move forward until distance moved
+           digitalWrite(LEFT_MOTOR_1,HIGH); // Move forward until distance moved
+           digitalWrite(LEFT_MOTOR_2,LOW);
         }
-        if(encoder_right()%distance==0) // Flag to check if the mouse has moved given distance
+        if(encoder_right()>=distance) // Flag to check if the mouse has moved given distance
         {
             right_flag=1;
         }
-        if(encoder_left()%distance==0)
+        if(encoder_left()>=distance)
         {
             left_flag=1;
         }
@@ -1106,7 +1097,9 @@ void turn_right()
     //   Distance between centres of the 2 wheels~~101mm
     //   Quarter circle traversed by each wheel=pi*50.5/2=79.32mm
     //
-    int flag;
+    int flag = 0;
+    left_value = 0;
+    right_value = 0;
     while(flag<1)
     {
           if(flag!=1)
@@ -1116,7 +1109,7 @@ void turn_right()
                 digitalWrite(LEFT_MOTOR_1,HIGH);
                 digitalWrite(LEFT_MOTOR_2,LOW);
           }
-          if(encoder_right()%79==0)
+          if(encoder_right()>=79)
           {
                 flag=1;
           }
@@ -1131,7 +1124,9 @@ void turn_left()
     //   Distance between centres of the 2 wheels~~101mm
     //   Quarter circle traversed by each wheel=pi*50.5/2=79.32mm
     //
-    int flag;
+    int flag = 0;
+    left_value = 0;
+    right_value = 0;
     while(flag<1)
     {
           if(flag!=1)
@@ -1141,7 +1136,7 @@ void turn_left()
                 digitalWrite(LEFT_MOTOR_1,LOW);
                 digitalWrite(LEFT_MOTOR_2,HIGH);
           }
-          if(encoder_left()%79==0)
+          if(encoder_left()>=79)
           {
                 flag=1;
           }
@@ -1153,6 +1148,8 @@ void go_backward(int distance)
     // go backward by distance
     int right_flag; // Flag to check if Right motor has moved the distance
     int left_flag; // Flag to check if Left motor has moved the distance
+    left_value = 0;
+    right_value = 0;
     while(right_flag+left_flag<2)
     {
         if(right_flag!=1)
@@ -1165,11 +1162,11 @@ void go_backward(int distance)
            digitalWrite(LEFT_MOTOR_1,LOW); // Move backward until distance moved
            digitalWrite(LEFT_MOTOR_2,HIGH);
         }
-        if(encoder_right()%distance==0) // Flag to check if the mouse has moved given distance
+        if(encoder_right()==distance) // Flag to check if the mouse has moved given distance
         {
             right_flag=1;
         }
-        if(encoder_left()%distance==0)
+        if(encoder_left()==distance)
         {
             left_flag=1;
         }
