@@ -1057,6 +1057,10 @@ void go_forward(int distance)                // go forward by distance
     
     while(right_flag+left_flag<2)
     { 
+        
+      check_wall_right();  //update right distance
+      check_wall_left();   //update left distance
+        
       error = (int)(distance_right - distance_left);
       if(error<error_threshold)
       {
