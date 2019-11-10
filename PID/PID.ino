@@ -25,15 +25,15 @@ void drive_straight( double distance_left, double distance_right) //To be includ
       total = (P+I+D);
 
       {
-        L_enable_val -= (total);
-        L_enable_val = constrain(L_enable_val, 120, 255)   // may need to adjust
+        L_MOTOR_val -= (total);
+        L_MOTOR_val = constrain(L_enable_val, 120, 255)   // may need to adjust
 
-        R_enable_val += (total);
-        R_enable_val = constrain(R_enable_val, 120, 255);
+        R_MOTOR_val += (total);
+        R_MOTOR_val = constrain(R_MOTOR_val, 120, 255);
 
-        analogWrite(left_enable, L_enable_val);            // enable pins and values
+        analogWrite(LEFT_MOTOR_1, L_MOTOR_val);            // MOTOR pins and values
                                                            // must be global
-        analogWrite(right_enable, R_enable_val);
+        analogWrite(RIGHT_MOTOR_1, R_MOTOR_val);
     }
   }
 }
