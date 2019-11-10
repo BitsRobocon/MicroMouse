@@ -26,6 +26,10 @@
     void turn_left(); // turns the mouse and goes to the block left of current position
     void go_backward(int ); // makes the mouse reverse the previous step
 
+//MOTOR ENABLE VALUES
+    int L_MOTOR_val; //used for PID of left motor
+    int R_MOTOR_val; //used for PID of right motor
+
 //  ENCODER
     int encoder_right();
     int encoder_left();
@@ -1041,22 +1045,43 @@ bool check_wall_right()
   }
 }
 
-void go_forward(int distance)
+void go_forward(int distance)                // go forward by distance
 {
-    // go forward by distance
     int right_flag; // Flag to check if Right motor has moved the distance
-    int left_flag; // Flag to check if Left motor has moved the distance
+    int left_flag;  // Flag to check if Left motor has moved the distance
+    
+    static int previous_error = 0;
+    static int Kp = 16, Ki = 1, Kd = 4;      // constants for scaling P I D effects (will need adjusting)
+    static int error, P, I = 0,  D;          // error variables
+    int total;
+    
     while(right_flag+left_flag<2)
-    {
+    { 
+      error = (int)(distance_right - distance_left);
+      if(error<error_threshold)
+      {
+        P = error * Kp;
+        I = (I + error)*Ki;
+        D = (error - previous_error) * Kd;                   // may take out
+        previous_error = error;
+
+        total = (P+I+D);
+        L_MOTOR_val -= (total);
+        L_MOTOR_val = constrain(L_enable_val, 120, 255)   // may need to adjust
+
+        R_MOTOR_val += (total);
+        R_MOTOR_val = constrain(R_MOTOR_val, 120, 255);
+        
         if(right_flag!=1)
         {
-            digitalWrite(RIGHT_MOTOR_1,HIGH); // Move forward until distance moved
+            analogWrite(RIGHT_MOTOR_1, R_MOTOR_val); // Move forward until distance moved
             digitalWrite(RIGHT_MOTOR_2,LOW);
         }
         if(left_flag!=1)
         {
-           digitalWrite(LEFT_MOTOR_1,HIGH); // Move forward until distance moved
-           digitalWrite(LEFT_MOTOR_2,LOW);
+           analogWrite(LEFT_MOTOR_1, L_MOTOR_val);            // MOTOR pins and values
+                                                              // must be global 
+           digitalWrite(LEFT_MOTOR_2,LOW);                    // Move forward until distance moved
         }
         if(encoder_right()%distance==0) // Flag to check if the mouse has moved given distance
         {
