@@ -4,8 +4,8 @@
 // Co Author - Hardik Jain (nepython)
 //
 // Last edit
-// 10 Nov, 2019 - Need to edit the turning functions. Everything else sholud be working.
-//                Corrected some major mistakes.
+// 11 Nov, 2019 - Added moving backward part.
+//                Will add PID if needed after testing.
 
 //
 
@@ -117,7 +117,7 @@ void loop()
     // keep going to next block using floodfill until maze center
     while(maze[current_row][current_column]!=0)
     {
-    next_square();
+        next_square();
     }
 
     // turn 180 degrees
@@ -125,6 +125,23 @@ void loop()
     turn_right();
 
     // follow path backwards
+    for(int i = path.length-1; i>=0; i--)
+    {
+        if(path.charAt(i)=='F')
+        {
+            go_forward(FRONT_BACK_BLOCK_DISTANCE);
+        }
+        else if(path.charAt(i)=='R')
+        {
+            go_forward(LEFT_RIGHT_BLOCK_DISTANCE);
+            turn_left();
+        }
+        else if(path.charAt(i)=='L')
+        {
+            go_forward(LEFT_RIGHT_BLOCK_DISTANCE);
+            turn_right();
+        }
+    }
 
     // turn 180 degrees
     turn_right();
