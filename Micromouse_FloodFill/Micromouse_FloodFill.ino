@@ -1206,7 +1206,7 @@ int encoder_left()
       {
           left_value--; // Only 1 interrupt used as 2nd interrupt was adding to redundancy
       }
-      return ((left_value/205)**30); // distance travelled by left motor in mm
+      return ((left_value/205)*Pi*30); // distance travelled by left motor in mm
 }
 
 int encoder_right()
