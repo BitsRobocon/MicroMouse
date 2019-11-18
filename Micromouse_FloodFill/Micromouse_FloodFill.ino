@@ -4,10 +4,8 @@
 // Co Author - Hardik Jain (nepython)
 //
 // Last edit
-// 11 Nov, 2019 - Added moving backward part.
+// 18 Nov, 2019 - Added enables which I had forgotten.
 //                Will add PID if needed after testing.
-
-//
 
 //
 // FUNCTIONS
@@ -77,9 +75,9 @@
     #define RIGHT_MOTOR_2 4 // pin 2 for right motor
     #define LEFT_MOTOR_1 9 // pin 1 for left motor
     #define LEFT_MOTOR_2 52 // pin 2 for left motor
-
-    int LEFT_MOTOR_VALUE; // used for PID of left motor
-    int RIGHT_MOTOR_VALUE; // used for PID of right motor
+    #define RIGHT_MOTOR_ENABLE 6 // enable pin for right motor
+    #define LEFT_MOTOR_ENABLE 7 // enable pin for left MOTOR
+    #define MOTOR_MAX_SPEED 255 // max speed for the motors. reduce if necessary
 
 // ENCODER
     #define RIGHT_ENCODER_DISTANCE 2 // pin for checking distance using right encoder
@@ -87,10 +85,11 @@
     #define LEFT_ENCODER_DISTANCE 18 // pin for checking distance using left encoder
     #define LEFT_ENCODER_DIRECTION 19 // pin for checking direction of left encoder
 
-    volatile int right_value=0; // reads right encoder value
-    volatile int left_value=0; // reads left encoder value
-
     #define Pi 3.14159
+
+    volatile int right_value = 0; // reads right encoder value
+    volatile int left_value = 0; // reads left encoder value
+
 
 void setup()
 {
@@ -1087,11 +1086,13 @@ void go_forward(int distance)
         {
             digitalWrite(RIGHT_MOTOR_1,HIGH); // Move forward until distance moved
             digitalWrite(RIGHT_MOTOR_2,LOW);
+            analogWrite(RIGHT_MOTOR_ENABLE, MOTOR_MAX_SPEED);
         }
         if(left_flag!=1)
         {
            digitalWrite(LEFT_MOTOR_1,HIGH); // Move forward until distance moved
            digitalWrite(LEFT_MOTOR_2,LOW);
+           analogWrite(LEFT_MOTOR_ENABLE, MOTOR_MAX_SPEED);
         }
         if(encoder_right()>=distance) // Flag to check if the mouse has moved given distance
         {
@@ -1123,6 +1124,8 @@ void turn_right()
                 digitalWrite(RIGHT_MOTOR_2,HIGH);
                 digitalWrite(LEFT_MOTOR_1,HIGH);
                 digitalWrite(LEFT_MOTOR_2,LOW);
+                analogWrite(RIGHT_MOTOR_ENABLE, MOTOR_MAX_SPEED);
+                analogWrite(LEFT_MOTOR_ENABLE, MOTOR_MAX_SPEED);
           }
           if(encoder_right()>=79)
           {
@@ -1150,6 +1153,8 @@ void turn_left()
                 digitalWrite(RIGHT_MOTOR_2,LOW);
                 digitalWrite(LEFT_MOTOR_1,LOW);
                 digitalWrite(LEFT_MOTOR_2,HIGH);
+                analogWrite(LEFT_MOTOR_ENABLE, MOTOR_MAX_SPEED);
+                analogWrite(RIGHT_MOTOR_ENABLE, MOTOR_MAX_SPEED);
           }
           if(encoder_left()>=79)
           {
@@ -1171,11 +1176,13 @@ void go_backward(int distance)
         {
             digitalWrite(RIGHT_MOTOR_1,LOW); // Move backward until distance moved
             digitalWrite(RIGHT_MOTOR_2,HIGH);
+            analogWrite(RIGHT_MOTOR_ENABLE, MOTOR_MAX_SPEED);
         }
         if(left_flag!=1)
         {
            digitalWrite(LEFT_MOTOR_1,LOW); // Move backward until distance moved
            digitalWrite(LEFT_MOTOR_2,HIGH);
+           analogWrite(LEFT_MOTOR_ENABLE, MOTOR_MAX_SPEED);
         }
         if(encoder_right()==distance) // Flag to check if the mouse has moved given distance
         {
@@ -1199,7 +1206,7 @@ int encoder_left()
       {
           left_value--; // Only 1 interrupt used as 2nd interrupt was adding to redundancy
       }
-      return ((left_value/205)*Pi*30); // distance travelled by left motor in mm
+      return ((left_value/205)**30); // distance travelled by left motor in mm
 }
 
 int encoder_right()
