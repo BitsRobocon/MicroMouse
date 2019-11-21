@@ -1,12 +1,11 @@
 //
 // This is the main file for the algorithm.
 // Author - Ashutosh Sharma (ashutoshshrm529)
-// Co Author - Hardik Jain (nepython)
 //
 // Last edit
-// 18 Nov, 2019 - Added enables which I had forgotten.
-//                Will add PID if needed after testing.
-
+// 22 Nov, 2019 - changed some variable definitions.
+//                motors are working now. the right and left ir needs to checked(returning constant distance)
+//                need to start maze testing.
 //
 // FUNCTIONS
 //
@@ -71,19 +70,19 @@
     #define LEFT_RIGHT_BLOCK_DISTANCE 80 // distance to move after turning in mm
 
 // MOTOR
-    #define RIGHT_MOTOR_1 5 // pin 1 for right motor
-    #define RIGHT_MOTOR_2 4 // pin 2 for right motor
+    #define RIGHT_MOTOR_1 4 // pin 1 for right motor
+    #define RIGHT_MOTOR_2 5 // pin 2 for right motor
     #define LEFT_MOTOR_1 9 // pin 1 for left motor
-    #define LEFT_MOTOR_2 52 // pin 2 for left motor
+    #define LEFT_MOTOR_2 17 // pin 2 for left motor
     #define RIGHT_MOTOR_ENABLE 6 // enable pin for right motor
     #define LEFT_MOTOR_ENABLE 7 // enable pin for left MOTOR
     #define MOTOR_MAX_SPEED 255 // max speed for the motors. reduce if necessary
 
 // ENCODER
-    #define RIGHT_ENCODER_DISTANCE 2 // pin for checking distance using right encoder
-    #define RIGHT_ENCODER_DIRECTION 3 // pin for checking direction of right encoder
-    #define LEFT_ENCODER_DISTANCE 18 // pin for checking distance using left encoder
-    #define LEFT_ENCODER_DIRECTION 19 // pin for checking direction of left encoder
+    #define RIGHT_ENCODER_DISTANCE 19 // pin for checking distance using right encoder
+    #define RIGHT_ENCODER_DIRECTION 18 // pin for checking direction of right encoder
+    #define LEFT_ENCODER_DISTANCE 21 // pin for checking distance using left encoder
+    #define LEFT_ENCODER_DIRECTION 20 // pin for checking direction of left encoder
 
     #define Pi 3.14159
 
@@ -113,38 +112,7 @@ void setup()
 
 void loop()
 {
-    // keep going to next block using floodfill until maze center
-    while(maze[current_row][current_column]!=0)
-    {
-        next_square();
-    }
 
-    // turn 180 degrees
-    turn_right();
-    turn_right();
-
-    // follow path backwards
-    for(int i = path.length()-1; i>=0; i--)
-    {
-        if(path.charAt(i)=='F')
-        {
-            go_forward(FRONT_BACK_BLOCK_DISTANCE);
-        }
-        else if(path.charAt(i)=='R')
-        {
-            go_forward(LEFT_RIGHT_BLOCK_DISTANCE);
-            turn_left();
-        }
-        else if(path.charAt(i)=='L')
-        {
-            go_forward(LEFT_RIGHT_BLOCK_DISTANCE);
-            turn_right();
-        }
-    }
-
-    // turn 180 degrees
-    turn_right();
-    turn_right();
 }
 
 void next_square()
@@ -952,6 +920,8 @@ bool check_wall_forward()
   {
     return false;
   }
+
+  Serial.println(distance);
 }
 
 bool check_wall_left()
@@ -1080,8 +1050,8 @@ void go_forward(int distance)
     // go forward by distance
     int right_flag = 0; // Flag to check if Right motor has moved the distance
     int left_flag = 0; // Flag to check if Left motor has moved the Distance
-    left_value = 0;
-    right_value = 0;
+    left_value=0;
+    right_value=0;
     while(right_flag+left_flag<2)
     {
         if(right_flag!=1)
@@ -1105,6 +1075,14 @@ void go_forward(int distance)
             left_flag=1;
         }
     }
+
+    digitalWrite(RIGHT_MOTOR_1,LOW); // Move forward until distance moved
+    digitalWrite(RIGHT_MOTOR_2,LOW);
+    analogWrite(RIGHT_MOTOR_ENABLE, 0);
+
+    digitalWrite(LEFT_MOTOR_1,LOW); // Move forward until distance moved
+    digitalWrite(LEFT_MOTOR_2,LOW);
+    analogWrite(LEFT_MOTOR_ENABLE, 0);
 }
 
 void turn_right()
@@ -1134,6 +1112,14 @@ void turn_right()
                 flag=1;
           }
      }
+
+     digitalWrite(RIGHT_MOTOR_1,LOW); // Move forward until distance moved
+     digitalWrite(RIGHT_MOTOR_2,LOW);
+     analogWrite(RIGHT_MOTOR_ENABLE, 0);
+
+     digitalWrite(LEFT_MOTOR_1,LOW); // Move forward until distance moved
+     digitalWrite(LEFT_MOTOR_2,LOW);
+     analogWrite(LEFT_MOTOR_ENABLE, 0);
 }
 
 void turn_left()
@@ -1163,15 +1149,23 @@ void turn_left()
                 flag=1;
           }
      }
+
+     digitalWrite(RIGHT_MOTOR_1,LOW); // Move forward until distance moved
+     digitalWrite(RIGHT_MOTOR_2,LOW);
+     analogWrite(RIGHT_MOTOR_ENABLE, 0);
+
+     digitalWrite(LEFT_MOTOR_1,LOW); // Move forward until distance moved
+     digitalWrite(LEFT_MOTOR_2,LOW);
+     analogWrite(LEFT_MOTOR_ENABLE, 0);
 }
 
 void go_backward(int distance)
 {
     // go backward by distance
-    int right_flag; // Flag to check if Right motor has moved the distance
-    int left_flag; // Flag to check if Left motor has moved the distance
-    left_value = 0;
-    right_value = 0;
+    int right_flag = 0; // Flag to check if Right motor has moved the distance
+    int left_flag = 0; // Flag to check if Left motor has moved the Distance
+    left_value=0;
+    right_value=0;
     while(right_flag+left_flag<2)
     {
         if(right_flag!=1)
@@ -1182,19 +1176,27 @@ void go_backward(int distance)
         }
         if(left_flag!=1)
         {
-           digitalWrite(LEFT_MOTOR_1,LOW); // Move backward until distance moved
+           digitalWrite(LEFT_MOTOR_1,LOW); // Move forward until distance moved
            digitalWrite(LEFT_MOTOR_2,HIGH);
            analogWrite(LEFT_MOTOR_ENABLE, MOTOR_MAX_SPEED);
         }
-        if(encoder_right()==distance) // Flag to check if the mouse has moved given distance
+        if(encoder_right()>=distance) // Flag to check if the mouse has moved given distance
         {
             right_flag=1;
         }
-        if(encoder_left()==distance)
+        if(encoder_left()>=distance)
         {
             left_flag=1;
         }
     }
+
+    digitalWrite(RIGHT_MOTOR_1,LOW); // Move forward until distance moved
+    digitalWrite(RIGHT_MOTOR_2,LOW);
+    analogWrite(RIGHT_MOTOR_ENABLE, 0);
+
+    digitalWrite(LEFT_MOTOR_1,LOW); // Move forward until distance moved
+    digitalWrite(LEFT_MOTOR_2,LOW);
+    analogWrite(LEFT_MOTOR_ENABLE, 0);
 }
 
 int encoder_left()

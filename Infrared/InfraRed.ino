@@ -19,6 +19,12 @@ void setup() {
 
 }
 
+void loop()
+{
+  l();
+  Serial.println(d);
+}
+
 
 int f()
 {volt=analogRead(A0);
