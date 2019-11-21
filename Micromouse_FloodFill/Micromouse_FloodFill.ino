@@ -1166,8 +1166,8 @@ void turn_left()
 void go_backward(int distance)
 {
     // go backward by distance
-    int right_flag; // Flag to check if Right motor has moved the distance
-    int left_flag; // Flag to check if Left motor has moved the distance
+    int right_flag=0; // Flag to check if Right motor has moved the distance
+    int left_flag=0; // Flag to check if Left motor has moved the distance
     left_value = 0;
     right_value = 0;
     while(right_flag+left_flag<2)
