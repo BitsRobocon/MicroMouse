@@ -3,26 +3,27 @@
 // Author - Ashutosh Sharma (ashutoshshrm529)
 //
 // Last edit
-// 22 Nov, 2019 - changed some variable definitions.
-//                motors are working now. the right and left ir needs to checked(returning constant distance)
-//                need to start maze testing.
+// 28 Nov, 2019 - changed the algorithm to a better one.
+//                maze testing with new algorithm begins.
 //
 // FUNCTIONS
 //
 //  FLOODFILL
-    void next_square(); // finds the next square using floodfill and takes the mouse there.
-    void update_path(int ); // updates the path as necessary by the floodfill algorithm
+    void initialize_maze(); // initializes the maze to original value(with no knowledge of walls)
+    void update_walls(); // checks and updates the walls in the maze array
+    void update_maze(); // updates the maze using the floodfill algorithm
+    void move_min(); // move to the adjacent square with minimum number (flood fill)
+    void move_max(); // move to the adjacent square with mazimum number (outward flood fill)
 
 //  WALL DETECTION
-    bool check_wall_forward(); // checks if mouse can go forward. Returns TRUE if it can else false.
-    bool check_wall_left(); // checks if mouse can go left. Returns TRUE if it can else false.
-    bool check_wall_right(); // checks if mouse can go right. Returns TRUE if it can else false.
+    bool check_wall_forward(); // Returns true if there is a wall in front of the mouse else false.
+    bool check_wall_left(); // Returns true if there is a wall to left of the mouse else false.
+    bool check_wall_right(); // Returns true if there is a wall to right of the mouse else false.
 
 //  MOTOR
-    void go_forward(int ); // makes the mouse go one block forward
+    void go_forward(int ); // makes the mouse go certain distance forward
     void turn_right(); // turns the mouse a quarter circle to right
-    void turn_left(); // turns the mouse and goes to the block left of current position
-    void go_backward(int ); // makes the mouse reverse the previous step
+    void turn_left(); // turns the mouse a quarter circle to left
 
 //  ENCODER
     int encoder_right();
@@ -32,27 +33,12 @@
 // GLOBAL VARIABLES
 //
 //  FLOODFILL
-    int maze[16][16] = {{14,13,12,11,10, 9, 8, 7, 7, 8, 9,10,11,12,13,14},
-                        {13,12,11,10, 9, 8, 7, 6, 6, 7, 8, 9,10,11,12,13},
-                        {12,11,10, 9, 8, 7, 6, 5, 5, 6, 7, 8, 9,10,11,12},
-                        {11,10, 9, 8, 7, 6, 5, 4, 4, 5, 6, 7, 8, 9,10,11},
-                        {10, 9, 8, 7, 6, 5, 4, 3, 3, 4, 5, 6, 7, 8, 9,10},
-                        { 9, 8, 7, 6, 5, 4, 3, 2, 2, 3, 4, 5, 6, 7, 8, 9},
-                        { 8, 7, 6, 5, 4, 3, 2, 1, 1, 2, 3, 4, 5, 6, 7, 8},
-                        { 7, 6, 5, 4, 3, 2, 1, 0, 0, 1, 2, 3, 4, 5, 6, 7},
-                        { 7, 6, 5, 4, 3, 2, 1, 0, 0, 1, 2, 3, 4, 5, 6, 7},
-                        { 8, 7, 6, 5, 4, 3, 2, 1, 1, 2, 3, 4, 5, 6, 7, 8},
-                        { 9, 8, 7, 6, 5, 4, 3, 2, 2, 3, 4, 5, 6, 7, 8, 9},
-                        {10, 9, 8, 7, 6, 5, 4, 3, 3, 4, 5, 6, 7, 8, 9,10},
-                        {11,10, 9, 8, 7, 6, 5, 4, 4, 5, 6, 7, 8, 9,10,11},
-                        {12,11,10, 9, 8, 7, 6, 5, 5, 6, 7, 8, 9,10,11,12},
-                        {13,12,11,10, 9, 8, 7, 6, 6, 7, 8, 9,10,11,12,13},
-                        {14,13,12,11,10, 9, 8, 7, 7, 8, 9,10,11,12,13,14}};
+    #define MAZE_SIZE 16
+    int maze[MAZE_SIZE][MAZE_SIZE][5]; // value,up,left,right,down
 
-    String path= "";
     int facing = 0; // 0 for up; 1 for left; 2 for right; 3 for down
     int current_row = 0;
-    int current_column = 15;
+    int current_column = MAZE_SIZE-1;
 
 //  WALL DETECTION
     #define FRONT_IR_PIN A0
@@ -108,941 +94,614 @@ void setup()
     // attachInterrupt(digitalPinToInterrupt(RIGHT_ENCODER_DIRECTION),inr,RISING );
     attachInterrupt(digitalPinToInterrupt(LEFT_ENCODER_DISTANCE),encoder_left,RISING );
     // attachInterrupt(digitalPinToInterrupt(LEFT_ENCODER_DIRECTION),inr,RISING );
+
+    initialize_maze();
 }
 
 void loop()
 {
+    while(maze[current_row][current_column][0]!=0)
+    {
+        update_walls();
+        update_maze();
+        move_min();
+    }
 
+    turn_right();
+    turn_right();
+
+    while(maze[current_row][current_column][0]!=0)
+    {
+        update_walls();
+        update_maze();
+        move_max();
+    }
+
+    turn_right();
+    turn_right();
 }
 
-void next_square()
+void move_min()
 {
-  int forward = -1;
-  int left = -1;
-  int right = -1;
-
-  // find the values at front, left and right
-  if(facing==0) // up
-  {
-    if(((current_row-1)>=0)&&(check_wall_forward())) // checking if maze value exists
+    if(facing == 0) // up
     {
-      forward = maze[current_row-1][current_column];
-    }
-    if(((current_column+1)<=15)&&(check_wall_right())) // checking if maze value exists
-    {
-      right = maze[current_row][current_column+1];
-    }
-    if(((current_column-1)>=0)&&(check_wall_left())) // checking if maze value exists
-    {
-      left = maze[current_row][current_column-1];
-    }
-  }
-  else if(facing==1) //left
-  {
-    if(((current_column-1)>=0)&&(check_wall_forward())) // checking if maze value exists
-    {
-      forward = maze[current_row][current_column-1];
-    }
-    if(((current_row-1)>=0)&&(check_wall_right())) // checking if maze value exists
-    {
-      right = maze[current_row-1][current_column];
-    }
-    if(((current_row+1)<=15)&&(check_wall_left())) // checking if maze value exists
-    {
-      left = maze[current_row+1][current_column];
-    }
-  }
-  else if(facing==2) //right
-  {
-    if(((current_column+1)<=15)&&(check_wall_forward())) // checking if maze value exists
-    {
-      forward = maze[current_row][current_column+1];
-    }
-    if(((current_row+1)<=15)&&(check_wall_right())) // checking if maze value exists
-    {
-      right = maze[current_row+1][current_column];
-    }
-    if(((current_row-1)>=0)&&(check_wall_left())) // checking if maze value exists
-    {
-      left = maze[current_row-1][current_column];
-    }
-  }
-  else if(facing==3) //down
-  {
-    if(((current_row+1)<=15)&&(check_wall_forward())) // checking if maze value exists
-    {
-      forward = maze[current_row+1][current_column];
-    }
-    if(((current_column-1)>=0)&&(check_wall_right())) // checking if maze value exists
-    {
-      right = maze[current_row][current_column-1];
-    }
-    if(((current_column+1)<=15)&&(check_wall_left())) // checking if maze value exists
-    {
-      left = maze[current_row][current_column+1];
-    }
-  }
-
-  //check values of available sides
-  if(forward!=-1)
-  {
-    if(left!=-1)
-    {
-      if(right!=-1)
-      {
-        // check smallest value from forward, left and right
-        if(((forward<right)&&(forward<left))||((forward==left)&&(forward<right))||((forward==right)&&(forward<left))||((right==left)&&(left==forward)))
+        if(maze[current_row-1][current_column][0]==(maze[current_row][current_column][0]-1))
         {
-          go_forward(FRONT_BACK_BLOCK_DISTANCE);
-
-          // go to smallest and update value if smallest is greater than current
-          if((maze[current_row][current_column]<=forward)||((maze[current_row][current_column]-forward)>1))
-          {
-            update_path(forward);
-          }
-
-          if(facing==0) //up
-          {
+            go_forward(FRONT_BACK_BLOCK_DISTANCE);
             current_row--;
-          }
-          else if(facing==1) //left
-          {
-            current_column--;
-          }
-          else if(facing==2) //right
-          {
-            current_column++;
-          }
-          else if(facing==3) //down
-          {
-            current_row++;
-          }
-
-          path += "F"
         }
-        else if((right<forward)&&(right<left))
+        else if(maze[current_row][current_column-1][0]==(maze[current_row][current_column][0]-1))
         {
-          turn_right();
-          go_forward(LEFT_RIGHT_BLOCK_DISTANCE);
-          // go to smallest and update value if smallest is greater than current
-          if((maze[current_row][current_column]<=right)||((maze[current_row][current_column]-right)>1))
-          {
-            update_path(right);
-          }
-
-          if(facing==0) //up
-          {
-            current_column++;
-            facing=2; //right
-          }
-          else if(facing==1) //left
-          {
-            current_row--;
-            facing=0; //up
-          }
-          else if(facing==2) //right
-          {
-            current_row++;
-            facing=3; //down
-          }
-          else if(facing==3) //down
-          {
-            current_column--;
-            facing=1; //left
-          }
-
-          path += "R"
-        }
-        else if((left<forward)&&(left<right))
-        {
-          turn_left();
-          go_forward(LEFT_RIGHT_BLOCK_DISTANCE);
-          // go to smallest and update value if smallest is greater than current
-          if((maze[current_row][current_column]<=left)||((maze[current_row][current_column]-left)>1))
-          {
-            update_path(left);
-          }
-
-          if(facing==0) //up
-          {
-            current_column--;
-            facing=1; //left
-          }
-          else if(facing==1) //left
-          {
-            current_row++;
-            facing=3; //down
-          }
-          else if(facing==2) //right
-          {
-            current_row--;
-            facing=0; //up
-          }
-          else if(facing==3) //down
-          {
-            current_column++;
-            facing=2; //right
-          }
-
-          path += "L"
-        }
-        else if((right==left)&&(left<forward))
-        {
-          // go random in left or right
-          if(random(2)==0)
-          {
             turn_left();
             go_forward(LEFT_RIGHT_BLOCK_DISTANCE);
-            // go to smallest and update value if smallest is greater than current
-            if((maze[current_row][current_column]<=left)||((maze[current_row][current_column]-left)>1))
-            {
-              update_path(left);
-            }
-
-            if(facing==0) //up
-            {
-              current_column--;
-              facing=1; //left
-            }
-            else if(facing==1) //left
-            {
-              current_row++;
-              facing=3; //down
-            }
-            else if(facing==2) //right
-            {
-              current_row--;
-              facing=0; //up
-            }
-            else if(facing==3) //down
-            {
-              current_column++;
-              facing=2; //right
-            }
-
-            path += "L"
-          }
-          else
-          {
+            facing = 1;
+            current_column--;
+        }
+        else if(maze[current_row][current_column+1][0]==(maze[current_row][current_column][0]-1))
+        {
             turn_right();
             go_forward(LEFT_RIGHT_BLOCK_DISTANCE);
-            // go to smallest and update value if smallest is greater than current
-            if((maze[current_row][current_column]<=right)||((maze[current_row][current_column]-right)>1))
-            {
-              update_path(right);
-            }
-
-            if(facing==0) //up
-            {
-              current_column++;
-              facing=2; //right
-            }
-            else if(facing==1) //left
-            {
-              current_row--;
-              facing=0; //up
-            }
-            else if(facing==2) //right
-            {
-              current_row++;
-              facing=3; //down
-            }
-            else if(facing==3) //down
-            {
-              current_column--;
-              facing=1; //left
-            }
-
-            path += "R"
-          }
-        }
-      }
-      else
-      {
-        // check smallest value from forward and left
-        if((forward<left)||(forward==left))
-        {
-          go_forward(FRONT_BACK_BLOCK_DISTANCE);
-
-          // go to smallest and update value if smallest is greater than current
-          if((maze[current_row][current_column]<=forward)||((maze[current_row][current_column]-forward)>1))
-          {
-            update_path(forward);
-          }
-
-          if(facing==0) //up
-          {
-            current_row--;
-          }
-          else if(facing==1) //left
-          {
-            current_column--;
-          }
-          else if(facing==2) //right
-          {
+            facing = 2;
             current_column++;
-          }
-          else if(facing==3) //down
-          {
-            current_row++;
-          }
-
-          path += "F"
         }
-        else
+        else if(maze[current_row+1][current_column][0]==(maze[current_row][current_column][0]-1))
         {
-          turn_left();
-          go_forward(LEFT_RIGHT_BLOCK_DISTANCE);
-          // go to smallest and update value if smallest is greater than current
-          if((maze[current_row][current_column]<=left)||((maze[current_row][current_column]-left)>1))
-          {
-            update_path(left);
-          }
-
-          if(facing==0) //up
-          {
-            current_column--;
-            facing=1; //left
-          }
-          else if(facing==1) //left
-          {
+            turn_right();
+            turn_right();
+            go_forward(FRONT_BACK_BLOCK_DISTANCE);
+            facing = 3;
             current_row++;
-            facing=3; //down
-          }
-          else if(facing==2) //right
-          {
-            current_row--;
-            facing=0; //up
-          }
-          else if(facing==3) //down
-          {
-            current_column++;
-            facing=2; //right
-          }
-
-          path += "L"
         }
-      }
     }
-    else
+    else if(facing == 1) // left
     {
-      if(right!=-1)
-      {
-        // check smallest value from forward and right
-        if((forward<right)||(forward==right))
+        if(maze[current_row][current_column-1][0]==(maze[current_row][current_column][0]-1))
         {
-          go_forward(FRONT_BACK_BLOCK_DISTANCE);
-
-          // go to smallest and update value if smallest is greater than current
-          if((maze[current_row][current_column]<=forward)||((maze[current_row][current_column]-forward)>1))
-          {
-            update_path(forward);
-          }
-
-          if(facing==0) //up
-          {
-            current_row--;
-          }
-          else if(facing==1) //left
-          {
+            go_forward(FRONT_BACK_BLOCK_DISTANCE);
             current_column--;
-          }
-          else if(facing==2) //right
-          {
-            current_column++;
-          }
-          else if(facing==3) //down
-          {
-            current_row++;
-          }
-
-          path += "F"
         }
-        else
+        else if(maze[current_row+1][current_column][0]==(maze[current_row][current_column][0]-1))
         {
-          turn_right();
-          go_forward(LEFT_RIGHT_BLOCK_DISTANCE);
-          // go to smallest and update value if smallest is greater than current
-          if((maze[current_row][current_column]<=right)||((maze[current_row][current_column]-right)>1))
-          {
-            update_path(right);
-          }
-
-          if(facing==0) //up
-          {
-            current_column++;
-            facing=2; //right
-          }
-          else if(facing==1) //left
-          {
-            current_row--;
-            facing=0; //up
-          }
-          else if(facing==2) //right
-          {
-            current_row++;
-            facing=3; //down
-          }
-          else if(facing==3) //down
-          {
-            current_column--;
-            facing=1; //left
-          }
-
-          path += "R"
-        }
-      }
-      else
-      {
-        go_forward(FRONT_BACK_BLOCK_DISTANCE);
-
-        // go to smallest and update value if smallest is greater than current
-        if((maze[current_row][current_column]<=forward)||((maze[current_row][current_column]-forward)>1))
-        {
-          update_path(forward);
-        }
-
-        if(facing==0) //up
-        {
-          current_row--;
-        }
-        else if(facing==1) //left
-        {
-          current_column--;
-        }
-        else if(facing==2) //right
-        {
-          current_column++;
-        }
-        else if(facing==3) //down
-        {
-          current_row++;
-        }
-
-        path += "F"
-      }
-    }
-  }
-  else
-  {
-    if(left!=-1)
-    {
-      if(right!=-1)
-      {
-        // check smallest value from right and left
-        if(right<left)
-        {
-          turn_right();
-          go_forward(LEFT_RIGHT_BLOCK_DISTANCE);
-          // go to smallest and update value if smallest is greater than current
-          if((maze[current_row][current_column]<=right)||((maze[current_row][current_column]-right)>1))
-          {
-            update_path(right);
-          }
-
-          if(facing==0) //up
-          {
-            current_column++;
-            facing=2; //right
-          }
-          else if(facing==1) //left
-          {
-            current_row--;
-            facing=0; //up
-          }
-          else if(facing==2) //right
-          {
-            current_row++;
-            facing=3; //down
-          }
-          else if(facing==3) //down
-          {
-            current_column--;
-            facing=1; //left
-          }
-
-          path += "R"
-        }
-        else if(left<right)
-        {
-          turn_left();
-          go_forward(LEFT_RIGHT_BLOCK_DISTANCE);
-          // go to smallest and update value if smallest is greater than current
-          if((maze[current_row][current_column]<=left)||((maze[current_row][current_column]-left)>1))
-          {
-            update_path(left);
-          }
-
-          if(facing==0) //up
-          {
-            current_column--;
-            facing=1; //left
-          }
-          else if(facing==1) //left
-          {
-            current_row++;
-            facing=3; //down
-          }
-          else if(facing==2) //right
-          {
-            current_row--;
-            facing=0; //up
-          }
-          else if(facing==3) //down
-          {
-            current_column++;
-            facing=2; //right
-          }
-
-          path += "L"
-        }
-        else
-        {
-          // go random in left or right
-          if(random(2)==0)
-          {
             turn_left();
             go_forward(LEFT_RIGHT_BLOCK_DISTANCE);
-            // go to smallest and update value if smallest is greater than current
-            if((maze[current_row][current_column]<=left)||((maze[current_row][current_column]-left)>1))
-            {
-              update_path(left);
-            }
-
-            if(facing==0) //up
-            {
-              current_column--;
-              facing=1; //left
-            }
-            else if(facing==1) //left
-            {
-              current_row++;
-              facing=3; //down
-            }
-            else if(facing==2) //right
-            {
-              current_row--;
-              facing=0; //up
-            }
-            else if(facing==3) //down
-            {
-              current_column++;
-              facing=2; //right
-            }
-
-            path += "L"
-          }
-          else
-          {
+            facing = 3;
+            current_row++;
+        }
+        else if(maze[current_row-1][current_column][0]==(maze[current_row][current_column][0]-1))
+        {
             turn_right();
             go_forward(LEFT_RIGHT_BLOCK_DISTANCE);
-            // go to smallest and update value if smallest is greater than current
-            if((maze[current_row][current_column]<=right)||((maze[current_row][current_column])-right>1))
-            {
-              update_path(right);
-            }
-
-            if(facing==0) //up
-            {
-              current_column++;
-              facing=2; //right
-            }
-            else if(facing==1) //left
-            {
-              current_row--;
-              facing=0; //up
-            }
-            else if(facing==2) //right
-            {
-              current_row++;
-              facing=3; //down
-            }
-            else if(facing==3) //down
-            {
-              current_column--;
-              facing=1; //left
-            }
-
-            path += "R"
-          }
+            facing = 0;
+            current_row--;
         }
-      }
-      else
-      {
-        turn_left();
-        go_forward(LEFT_RIGHT_BLOCK_DISTANCE);
-        // go to smallest and update value if smallest is greater than current
-        if((maze[current_row][current_column]<=left)||((maze[current_row][current_column]-left)>1))
+        else if(maze[current_row][current_column+1][0]==(maze[current_row][current_column][0]-1))
         {
-          update_path(left);
-        }
-
-        if(facing==0) //up
-        {
-          current_column--;
-          facing=1; //left
-        }
-        else if(facing==1) //left
-        {
-          current_row++;
-          facing=3; //down
-        }
-        else if(facing==2) //right
-        {
-          current_row--;
-          facing=0; //up
-        }
-        else if(facing==3) //down
-        {
-          current_column++;
-          facing=2; //right
-        }
-
-        path += "L"
-      }
-    }
-    else
-    {
-      if(right!=-1)
-      {
-        turn_right();
-        go_forward(LEFT_RIGHT_BLOCK_DISTANCE);
-        // go to smallest and update value if smallest is greater than current
-        if((maze[current_row][current_column]<=right)||((maze[current_row][current_column]-right)>1))
-        {
-          update_path(right);
-        }
-
-        if(facing==0) //up
-        {
-          current_column++;
-          facing=2; //right
-        }
-        else if(facing==1) //left
-        {
-          current_row--;
-          facing=0; //left
-        }
-        else if(facing==2) //right
-        {
-          current_row++;
-          facing=3; //down
-        }
-        else if(facing==3) //down
-        {
-          current_column--;
-          facing=1; //left
-        }
-
-        path += "R"
-      }
-      else
-      {
-        // reverse previous step
-        if(path.charAt(path.length()-1)=='F')
-        {
-            go_backward(FRONT_BACK_BLOCK_DISTANCE);
-        }
-        else if(path.charAt(path.length()-1)=='L')
-        {
-            go_backward(LEFT_RIGHT_BLOCK_DISTANCE);
             turn_right();
+            turn_right();
+            go_forward(FRONT_BACK_BLOCK_DISTANCE);
+            facing = 2;
+            current_column++;
         }
-        else if(path.charAt(path.length()-1)=='R')
-        {
-            go_backward(LEFT_RIGHT_BLOCK_DISTANCE);
-            turn_left();
-        }
-
-        // delete path since going back
-        path = path.substring(0, path.length());
-
-        // curretn position of maze = -1
-        maze[current_row][current_column] = -1;
-
-        if(facing==0) //up
-        {
-          current_row++;
-        }
-        else if(facing==1) //left
-        {
-          current_column++;
-        }
-        else if(facing==2) //right
-        {
-          current_column--;
-        }
-        else if(facing==3) //down
-        {
-          current_row--;
-        }
-      }
     }
-  }
+    else if(facing == 2) // right
+    {
+        if(maze[current_row][current_column+1][0]==(maze[current_row][current_column][0]-1))
+        {
+            go_forward(FRONT_BACK_BLOCK_DISTANCE);
+            current_column++;
+        }
+        else if(maze[current_row-1][current_column][0]==(maze[current_row][current_column][0]-1))
+        {
+            turn_left();
+            go_forward(LEFT_RIGHT_BLOCK_DISTANCE);
+            facing = 0;
+            current_row--;
+        }
+        else if(maze[current_row+1][current_column][0]==(maze[current_row][current_column][0]-1))
+        {
+            turn_right();
+            go_forward(LEFT_RIGHT_BLOCK_DISTANCE);
+            facing = 3;
+            current_row++;
+        }
+        else if(maze[current_row][current_column-1][0]==(maze[current_row][current_column][0]-1))
+        {
+            turn_right();
+            turn_right();
+            go_forward(FRONT_BACK_BLOCK_DISTANCE);
+            facing = 1;
+            current_column--;
+        }
+    }
+    else if(facing == 3) // down
+    {
+        if(maze[current_row+1][current_column][0]==(maze[current_row][current_column][0]-1))
+        {
+            go_forward(FRONT_BACK_BLOCK_DISTANCE);
+            current_row++;
+        }
+        else if(maze[current_row][current_column+1][0]==(maze[current_row][current_column][0]-1))
+        {
+            turn_left();
+            go_forward(LEFT_RIGHT_BLOCK_DISTANCE);
+            facing = 2;
+            current_column++;
+        }
+        else if(maze[current_row][current_column-1][0]==(maze[current_row][current_column][0]-1))
+        {
+            turn_right();
+            go_forward(LEFT_RIGHT_BLOCK_DISTANCE);
+            facing = 3;
+            current_column--;
+        }
+        else if(maze[current_row-1][current_column][0]==(maze[current_row][current_column][0]-1))
+        {
+            turn_right();
+            turn_right();
+            go_forward(FRONT_BACK_BLOCK_DISTANCE);
+            facing = 0;
+            current_row--;
+        }
+    }
 }
 
-void update_path(int value)
+void move_max()
 {
-  int row = current_row;
-  int column = current_column;
-  int face = facing; // 0 for up; 1 for left; 2 for right; 3 for down
-
-  for(int i = (path.length()-1); i>=0; i--)
-  {
-    value++;
-
-    maze[row][column] = value;
-
-    if(path.charAt(i)=='F')
+    if(facing == 0) // up
     {
-      if(face==0) //up
-      {
-        row++;
-      }
-      else if(face==1) //left
-      {
-        column++;
-      }
-      else if(face==2) //right
-      {
-        column--;
-      }
-      else if(face==3) //down
-      {
-        row--;
-      }
+        if(maze[current_row-1][current_column][0]==(maze[current_row][current_column][0]+1))
+        {
+            go_forward(FRONT_BACK_BLOCK_DISTANCE);
+            current_row--;
+        }
+        else if(maze[current_row][current_column-1][0]==(maze[current_row][current_column][0]+1))
+        {
+            turn_left();
+            go_forward(LEFT_RIGHT_BLOCK_DISTANCE);
+            facing = 1;
+            current_column--;
+        }
+        else if(maze[current_row][current_column+1][0]==(maze[current_row][current_column][0]+1))
+        {
+            turn_right();
+            go_forward(LEFT_RIGHT_BLOCK_DISTANCE);
+            facing = 2;
+            current_column++;
+        }
+        else if(maze[current_row+1][current_column][0]==(maze[current_row][current_column][0]+1))
+        {
+            turn_right();
+            turn_right();
+            go_forward(FRONT_BACK_BLOCK_DISTANCE);
+            facing = 3;
+            current_row++;
+        }
     }
-    else if(path.charAt(i)=='R')
+    else if(facing == 1) // left
     {
-      if(face==0) //up
-      {
-        row++;
-        face=1;
-      }
-      else if(face==1) //left
-      {
-        column++;
-        face=3;
-      }
-      else if(face==2) //right
-      {
-        column--;
-        face=0;
-      }
-      else if(face==3) //down
-      {
-        row--;
-        face=2;
-      }
+        if(maze[current_row][current_column-1][0]==(maze[current_row][current_column][0]+1))
+        {
+            go_forward(FRONT_BACK_BLOCK_DISTANCE);
+            current_column--;
+        }
+        else if(maze[current_row+1][current_column][0]==(maze[current_row][current_column][0]+1))
+        {
+            turn_left();
+            go_forward(LEFT_RIGHT_BLOCK_DISTANCE);
+            facing = 3;
+            current_row++;
+        }
+        else if(maze[current_row-1][current_column][0]==(maze[current_row][current_column][0]+1))
+        {
+            turn_right();
+            go_forward(LEFT_RIGHT_BLOCK_DISTANCE);
+            facing = 0;
+            current_row--;
+        }
+        else if(maze[current_row][current_column+1][0]==(maze[current_row][current_column][0]+1))
+        {
+            turn_right();
+            turn_right();
+            go_forward(FRONT_BACK_BLOCK_DISTANCE);
+            facing = 2;
+            current_column++;
+        }
     }
-    else if(path.charAt(i)=='L')
+    else if(facing == 2) // right
     {
-      if(face==0)
-      {
-        row++;
-        face=2;
-      }
-      else if(face==1)
-      {
-        column++;
-        face=0;
-      }
-      else if(face==2)
-      {
-        column--;
-        face=3;
-      }
-      else if(face==3)
-      {
-        row--;
-        face=1;
-      }
+        if(maze[current_row][current_column+1][0]==(maze[current_row][current_column][0]+1))
+        {
+            go_forward(FRONT_BACK_BLOCK_DISTANCE);
+            current_column++;
+        }
+        else if(maze[current_row-1][current_column][0]==(maze[current_row][current_column][0]+1))
+        {
+            turn_left();
+            go_forward(LEFT_RIGHT_BLOCK_DISTANCE);
+            facing = 0;
+            current_row--;
+        }
+        else if(maze[current_row+1][current_column][0]==(maze[current_row][current_column][0]+1))
+        {
+            turn_right();
+            go_forward(LEFT_RIGHT_BLOCK_DISTANCE);
+            facing = 3;
+            current_row++;
+        }
+        else if(maze[current_row][current_column-1][0]==(maze[current_row][current_column][0]+1))
+        {
+            turn_right();
+            turn_right();
+            go_forward(FRONT_BACK_BLOCK_DISTANCE);
+            facing = 1;
+            current_column--;
+        }
+    }
+    else if(facing == 3) // down
+    {
+        if(maze[current_row+1][current_column][0]==(maze[current_row][current_column][0]+1))
+        {
+            go_forward(FRONT_BACK_BLOCK_DISTANCE);
+            current_row++;
+        }
+        else if(maze[current_row][current_column+1][0]==(maze[current_row][current_column][0]+1))
+        {
+            turn_left();
+            go_forward(LEFT_RIGHT_BLOCK_DISTANCE);
+            facing = 2;
+            current_column++;
+        }
+        else if(maze[current_row][current_column-1][0]==(maze[current_row][current_column][0]+1))
+        {
+            turn_right();
+            go_forward(LEFT_RIGHT_BLOCK_DISTANCE);
+            facing = 3;
+            current_column--;
+        }
+        else if(maze[current_row-1][current_column][0]==(maze[current_row][current_column][0]+1))
+        {
+            turn_right();
+            turn_right();
+            go_forward(FRONT_BACK_BLOCK_DISTANCE);
+            facing = 0;
+            current_row--;
+        }
+    }
+}
+
+void update_walls()
+{
+    if(facing == 0) // up
+    {
+        if(check_wall_forward)
+        {
+            maze[current_row][current_column][1] = 1;
+            if((current_row+1)<(MAZE_SIZE-1))
+            {
+                maze[current_row + 1][current_column][4] = 1;
+            }
+        }
+
+        if(check_wall_left)
+        {
+            maze[current_row][current_column][2] = 1;
+            if((current_column-1)>0)
+            {
+                maze[current_row][current_column - 1][3] = 1;
+            }
+        }
+
+        if(check_wall_right)
+        {
+            maze[current_row][current_column][3] = 1;
+            if((current_column+1)<(MAZE_SIZE-1))
+            {
+                maze[current_row][current_column + 1][2] = 1;
+            }
+        }
+    }
+    else if(facing == 1) // left
+    {
+        if(check_wall_forward)
+        {
+            maze[current_row][current_column][2] = 1;
+            if((current_column-1)>0)
+            {
+                maze[current_row][current_column - 1][3] = 1;
+            }
+        }
+
+        if(check_wall_left)
+        {
+            maze[current_row][current_column][4] = 1;
+            if((current_row-1)<(MAZE_SIZE-1))
+            {
+                maze[current_row - 1][current_column][1] = 1;
+            }
+        }
+
+        if(check_wall_right)
+        {
+            maze[current_row][current_column][1] = 1;
+            if((current_row+1)<(MAZE_SIZE-1))
+            {
+                maze[current_row + 1][current_column][4] = 1;
+            }
+        }
+    }
+    else if(facing == 2) // right
+    {
+        if(check_wall_forward)
+        {
+            maze[current_row][current_column][3] = 1;
+            if((current_column+1)<(MAZE_SIZE-1))
+            {
+                maze[current_row][current_column + 1][2] = 1;
+            }
+        }
+
+        if(check_wall_left)
+        {
+            maze[current_row][current_column][1] = 1;
+            if((current_row+1)<(MAZE_SIZE-1))
+            {
+                maze[current_row + 1][current_column][4] = 1;
+            }
+        }
+
+        if(check_wall_right)
+        {
+            maze[current_row][current_column][4] = 1;
+            if((current_row-1)<(MAZE_SIZE-1))
+            {
+                maze[current_row - 1][current_column][1] = 1;
+            }
+        }
+    }
+    else if(facing == 3) // down
+    {
+        if(check_wall_forward)
+        {
+            maze[current_row][current_column][4] = 1;
+            if((current_row-1)<(MAZE_SIZE-1))
+            {
+                maze[current_row - 1][current_column][1] = 1;
+            }
+        }
+
+        if(check_wall_left)
+        {
+            maze[current_row][current_column][3] = 1;
+            if((current_column+1)<(MAZE_SIZE-1))
+            {
+                maze[current_row][current_column + 1][2] = 1;
+            }
+        }
+
+        if(check_wall_right)
+        {
+            maze[current_row][current_column][2] = 1;
+            if((current_column-1)>0)
+            {
+                maze[current_row][current_column - 1][3] = 1;
+            }
+        }
+    }
+}
+
+void update_maze()
+{
+    int temp = 0;
+    for(int i = 0; i < MAZE_SIZE; i++)
+    {
+        for(int j = 0; j < MAZE_SIZE; j++)
+        {
+            if(!(((i==((MAZE_SIZE/2)-1))&&(j==((MAZE_SIZE/2)-1)))||((i==((MAZE_SIZE/2)-1))&&(j==(MAZE_SIZE/2)))||((i==(MAZE_SIZE/2))&&(j==((MAZE_SIZE/2)-1)))||((i==(MAZE_SIZE/2))&&(j==(MAZE_SIZE/2)))))
+            {
+                int min = -1;
+                if(maze[i][j][1]==0)
+                {
+                    if(min==-1)
+                    {
+                        min = maze[i-1][j][0];
+                    }
+                    else
+                    {
+                        if(maze[i-1][j][0]<min)
+                        {
+                            min = maze[i-1][j][0];
+                        }
+                    }
+                }
+                if(maze[i][j][2]==0)
+                {
+                    if(min==-1)
+                    {
+                        min = maze[i][j-1][0];
+                    }
+                    else
+                    {
+                        if(maze[i][j-1][0]<min)
+                        {
+                            min = maze[i][j-1][0];
+                        }
+                    }
+                }
+                if(maze[i][j][3]==0)
+                {
+                    if(min==-1)
+                    {
+                        min = maze[i][j+1][0];
+                    }
+                    else
+                    {
+                        if(maze[i][j+1][0]<min)
+                        {
+                            min = maze[i][j+1][0];
+                        }
+                    }
+                }
+                if(maze[i][j][4]==0)
+                {
+                    if(min==-1)
+                    {
+                        min = maze[i+1][j][0];
+                    }
+                    else
+                    {
+                        if(maze[i+1][j][0]<min)
+                        {
+                            min = maze[i+1][j][0];
+                        }
+                    }
+                }
+
+                if(min!=-1)
+                {
+                    if(maze[i][j][0] != (min+1))
+                    {
+                        maze[i][j][0]=(min+1);
+                        temp = 1;
+                    }
+                }
+            }
+        }
+        if(temp == 1)
+        {
+            break;
+        }
     }
 
-  }
+    if(temp == 1)
+    {
+        update_maze();
+    }
+}
+
+void initialize_maze()
+{
+    for(int i = 0; i < (MAZE_SIZE/2); i++)
+    {
+        for(int j = 0; j < (MAZE_SIZE/2); j++)
+        {
+            maze[i][j][0] = (MAZE_SIZE-((i+1) + (j+1)));
+
+            if(i == 0)
+            {
+                maze[i][j][1] = 1; // for top boundary
+            }
+
+            if(j == 0)
+            {
+                maze[i][j][2] = 1; // for left side boundary
+            }
+        }
+    }
+
+    for(int i = 0; i < (MAZE_SIZE/2); i++)
+    {
+        for(int j = (MAZE_SIZE/2); j < MAZE_SIZE; j++)
+        {
+            maze[i][j][0] = (MAZE_SIZE-((i+1) + ((MAZE_SIZE-(j+1))+1)));
+
+            if(i == 0)
+            {
+                maze[i][j][1] = 1; // for top boundary
+            }
+
+            if(j == (MAZE_SIZE-1))
+            {
+                maze[i][j][3] = 1; // for right side boundary
+            }
+        }
+    }
+
+    for(int i = (MAZE_SIZE/2); i < MAZE_SIZE; i++)
+    {
+        for(int j = 0; j < (MAZE_SIZE/2); j++)
+        {
+            maze[i][j][0] = (MAZE_SIZE-(((MAZE_SIZE-(i+1))+1) + (j+1)));
+
+            if(i == (MAZE_SIZE-1))
+            {
+                maze[i][j][4] = 1; // for bottom boundary
+            }
+
+            if(j == 0)
+            {
+                maze[i][j][2] = 1; // for left side boundary
+            }
+        }
+    }
+
+    for(int i = (MAZE_SIZE/2); i < MAZE_SIZE; i++)
+    {
+        for(int j = (MAZE_SIZE/2); j < MAZE_SIZE; j++)
+        {
+            maze[i][j][0] = (MAZE_SIZE-(((MAZE_SIZE-(i+1))+1) + ((MAZE_SIZE-(j+1))+1)));
+
+            if(i == (MAZE_SIZE-1))
+            {
+                maze[i][j][4] = 1; // for bottom boundary
+            }
+
+            if(j == (MAZE_SIZE-1))
+            {
+                maze[i][j][3] = 1; // for right side boundary
+            }
+        }
+    }
 }
 
 bool check_wall_forward()
 {
-  // check forward using IR
-  // return false if wall or -1
-  // return true if possible to go there
-  double distance = 12.08 * pow(analogRead(FRONT_IR_PIN) , -1.058) * 250; // Specific for the model of IR being used
+      // check forward using IR
+      // return false if wall or -1
+      // return true if possible to go there
+      double distance = 12.08 * pow(analogRead(FRONT_IR_PIN) , -1.058) * 250; // Specific for the model of IR being used
 
-  if(distance<THRESHOLD_FORWARD) // there is no wall
-  {
-    if(facing==0) // up
-    {
-      if(maze[current_row-1][current_column]==-1)
+      if(distance<THRESHOLD_FORWARD) // there is no wall
       {
-        return false;
+          return true;
       }
-      else
+      else // there is a wall
       {
-        return true;
+          return false;
       }
-    }
-    else if(facing==1) // left
-    {
-      if(maze[current_row][current_column-1]==-1)
-      {
-        return false;
-      }
-      else
-      {
-        return true;
-      }
-    }
-    else if(facing==2) // right
-    {
-      if(maze[current_row][current_column+1]==-1)
-      {
-        return false;
-      }
-      else
-      {
-        return true;
-      }
-    }
-    else if(facing==3) // down
-    {
-      if(maze[current_row+1][current_column]==-1)
-      {
-        return false;
-      }
-      else
-      {
-        return true;
-      }
-    }
-  }
-  else // there is a wall
-  {
-    return false;
-  }
-
-  Serial.println(distance);
 }
 
 bool check_wall_left()
 {
-  // check left using IR
-  // return false if wall or -1
-  // return true if possible to go there
-  distance_left = 12.08 * pow(analogRead(LEFT_IR_PIN) , -1.058) * 250; // Specific for the model of IR being used
+      // check left using IR
+      // return false if wall or -1
+      // return true if possible to go there
+      distance_left = 12.08 * pow(analogRead(LEFT_IR_PIN) , -1.058) * 250; // Specific for the model of IR being used
 
-  if(distance_left<THRESHOLD_LEFT) // there is no wall
-  {
-    if(facing==0) // up
-    {
-      if(maze[current_row][current_column-1]==-1)
+      if(distance_left<THRESHOLD_LEFT) // there is no wall
       {
-        return false;
+          return true;
       }
-      else
+      else // there is a wall
       {
-        return true;
+          return false;
       }
-    }
-    else if(facing==1) // left
-    {
-      if(maze[current_row+1][current_column]==-1)
-      {
-        return false;
-      }
-      else
-      {
-        return true;
-      }
-    }
-    else if(facing==2) // right
-    {
-      if(maze[current_row-1][current_column]==-1)
-      {
-        return false;
-      }
-      else
-      {
-        return true;
-      }
-    }
-    else if(facing==3) // down
-    {
-      if(maze[current_row][current_column+1]==-1)
-      {
-        return false;
-      }
-      else
-      {
-        return true;
-      }
-    }
-  }
-  else // there is a wall
-  {
-    return false;
-  }
 }
 
 bool check_wall_right()
 {
+      // check right using IR
+      // return false if wall or -1
+      // return true if possible to go there
+      distance_right = 12.08 * pow(analogRead(RIGHT_IR_PIN) , -1.058) * 250; // Specific for the model of IR being used
 
-  // check right using IR
-  // return false if wall or -1
-  // return true if possible to go there
-  distance_right = 12.08 * pow(analogRead(RIGHT_IR_PIN) , -1.058) * 250; // Specific for the model of IR being used
-
-  if(distance_right<THRESHOLD_RIGHT) // there is no wall
-  {
-    if(facing==0) // up
-    {
-      if(maze[current_row][current_column+1]==-1)
+      if(distance_right<THRESHOLD_RIGHT) // there is no wall
       {
-        return false;
+          return true;
       }
-      else
+      else // there is a wall
       {
-        return true;
+          return false;
       }
-    }
-    else if(facing==1) // left
-    {
-      if(maze[current_row-1][current_column]==-1)
-      {
-        return false;
-      }
-      else
-      {
-        return true;
-      }
-    }
-    else if(facing==2) // right
-    {
-      if(maze[current_row+1][current_column]==-1)
-      {
-        return false;
-      }
-      else
-      {
-        return true;
-      }
-    }
-    else if(facing==3) // down
-    {
-      if(maze[current_row][current_column-1]==-1)
-      {
-        return false;
-      }
-      else
-      {
-        return true;
-      }
-    }
-  }
-  else // there is a wall
-  {
-    return false;
-  }
 }
 
 void go_forward(int distance)
@@ -1076,18 +735,18 @@ void go_forward(int distance)
         }
     }
 
-    digitalWrite(RIGHT_MOTOR_1,LOW); // Move forward until distance moved
+    digitalWrite(RIGHT_MOTOR_1,LOW); // turn off right motor
     digitalWrite(RIGHT_MOTOR_2,LOW);
     analogWrite(RIGHT_MOTOR_ENABLE, 0);
 
-    digitalWrite(LEFT_MOTOR_1,LOW); // Move forward until distance moved
+    digitalWrite(LEFT_MOTOR_1,LOW); // turn off left motor
     digitalWrite(LEFT_MOTOR_2,LOW);
     analogWrite(LEFT_MOTOR_ENABLE, 0);
 }
 
 void turn_right()
 {
-    // turn right and go one block ahead
+    // turn right
     // need to do some axis checking with maze and edit
     //
     //   Distance between centres of the 2 wheels~~101mm
@@ -1113,18 +772,18 @@ void turn_right()
           }
      }
 
-     digitalWrite(RIGHT_MOTOR_1,LOW); // Move forward until distance moved
+     digitalWrite(RIGHT_MOTOR_1,LOW); // turn off right motor
      digitalWrite(RIGHT_MOTOR_2,LOW);
      analogWrite(RIGHT_MOTOR_ENABLE, 0);
 
-     digitalWrite(LEFT_MOTOR_1,LOW); // Move forward until distance moved
+     digitalWrite(LEFT_MOTOR_1,LOW); // turn off left motor
      digitalWrite(LEFT_MOTOR_2,LOW);
      analogWrite(LEFT_MOTOR_ENABLE, 0);
 }
 
 void turn_left()
 {
-    // turn left and go one block ahead
+    // turn left
     // need to do some axis checking with maze and edit
     //
     //   Distance between centres of the 2 wheels~~101mm
@@ -1150,67 +809,13 @@ void turn_left()
           }
      }
 
-     digitalWrite(RIGHT_MOTOR_1,LOW); // Move forward until distance moved
+     digitalWrite(RIGHT_MOTOR_1,LOW); // turn off right motor
      digitalWrite(RIGHT_MOTOR_2,LOW);
      analogWrite(RIGHT_MOTOR_ENABLE, 0);
 
-     digitalWrite(LEFT_MOTOR_1,LOW); // Move forward until distance moved
+     digitalWrite(LEFT_MOTOR_1,LOW); // turn off left motor
      digitalWrite(LEFT_MOTOR_2,LOW);
      analogWrite(LEFT_MOTOR_ENABLE, 0);
-}
-
-void go_backward(int distance)
-{
-    // go backward by distance
-    int right_flag = 0; // Flag to check if Right motor has moved the distance
-    int left_flag = 0; // Flag to check if Left motor has moved the Distance
-    left_value=0;
-    right_value=0;
-    while(right_flag+left_flag<2)
-    {
-        if(right_flag!=1)
-        {
-            digitalWrite(RIGHT_MOTOR_1,LOW); // Move backward until distance moved
-            digitalWrite(RIGHT_MOTOR_2,HIGH);
-            analogWrite(RIGHT_MOTOR_ENABLE, MOTOR_MAX_SPEED);
-        }
-        if(left_flag!=1)
-        {
-           digitalWrite(LEFT_MOTOR_1,LOW); // Move forward until distance moved
-           digitalWrite(LEFT_MOTOR_2,HIGH);
-           analogWrite(LEFT_MOTOR_ENABLE, MOTOR_MAX_SPEED);
-        }
-        if(encoder_right()>=distance) // Flag to check if the mouse has moved given distance
-        {
-            right_flag=1;
-        }
-        if(encoder_left()>=distance)
-        {
-            left_flag=1;
-        }
-    }
-
-    digitalWrite(RIGHT_MOTOR_1,LOW); // Move forward until distance moved
-    digitalWrite(RIGHT_MOTOR_2,LOW);
-    analogWrite(RIGHT_MOTOR_ENABLE, 0);
-
-    digitalWrite(LEFT_MOTOR_1,LOW); // Move forward until distance moved
-    digitalWrite(LEFT_MOTOR_2,LOW);
-    analogWrite(LEFT_MOTOR_ENABLE, 0);
-}
-
-int encoder_left()
-{
-      // returns the distance as recorded by the left encoder
-      if(digitalRead(LEFT_ENCODER_DISTANCE) == HIGH) // ISR for left motor
-      {
-          left_value++;
-      }
-      if (digitalRead(LEFT_ENCODER_DISTANCE) == LOW)
-      {
-          left_value--; // Only 1 interrupt used as 2nd interrupt was adding to redundancy
-      }
-      return ((left_value/205)*Pi*30); // distance travelled by left motor in mm
 }
 
 int encoder_right()
@@ -1222,7 +827,21 @@ int encoder_right()
       }
       if(digitalRead(RIGHT_ENCODER_DISTANCE) == LOW)
       {
-          right_value--; // a keeps track of the rotary motion of the right encoder
+          right_value--;
       }
       return ((right_value/205)*Pi*30); // distance travelled by right motor in mm
+}
+
+int encoder_left()
+{
+      // returns the distance as recorded by the left encoder
+      if(digitalRead(LEFT_ENCODER_DISTANCE) == HIGH) // ISR for left motor
+      {
+          left_value++; // Only 1 interrupt used as 2nd interrupt was adding to redundancy
+      }
+      if(digitalRead(LEFT_ENCODER_DISTANCE) == LOW)
+      {
+          left_value--;
+      }
+      return ((left_value/205)*Pi*30); // distance travelled by left motor in mm
 }
