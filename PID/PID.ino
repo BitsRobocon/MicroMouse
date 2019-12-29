@@ -1,14 +1,14 @@
 /*PID.ino
- *Last updated:10/11/19
+ *Last updated:29/12/19
  *Author: Hardik
  *CoAuthor: Ashutosh
  */
 
-# define error_threshold                   //To be defined error of threshold
+# define error_threshold 5                  //Beyond this error, PID won't work
 void drive_straight( double distance_left, double distance_right) //To be included in Forward
 {
   static int previous_error = 0;
-  static int Kp = 16, Ki = 1, Kd = 4;      // constants for scaling P I D effects (will need adjusting)
+  static int Kp = 25, Ki = 1, Kd = 4;      // constants for scaling P I D effects (will need adjusting)
   static int error, P, I = 0,  D;          // error variables
   int total;
 
@@ -17,7 +17,7 @@ void drive_straight( double distance_left, double distance_right) //To be includ
     {
       P = error * Kp;
 
-      I = (I + error)*Ki;
+      //I = (I + error)*Ki;
 
       D = (error - previous_error) * Kd;                   // may take out
       previous_error = error;
