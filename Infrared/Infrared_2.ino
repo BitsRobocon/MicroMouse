@@ -1,5 +1,5 @@
 /*
- * Name :Infrared_2.ino
+ * Infrared_2.ino
  * Author : Hardik Jain (nepython)
  * Last Update : 29/12/19  
  */
