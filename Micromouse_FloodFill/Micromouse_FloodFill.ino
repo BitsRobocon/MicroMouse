@@ -1,10 +1,8 @@
 //
 // This is the main file for the algorithm.
-// Author - Ashutosh Sharma (ashutoshshrm529)
+// Authors - Ashutosh Sharma (ashutoshshrm529)
+//           Hardik Jain (nepython)
 //
-// Last edit
-// 28 Nov, 2019 - changed the algorithm to a better one.
-//                maze testing with new algorithm begins.
 //
 // FUNCTIONS
 //
@@ -12,45 +10,47 @@
     void initialize_maze(); // initializes the maze to original value(with no knowledge of walls)
     void update_walls(); // checks and updates the walls in the maze array
     void update_maze(); // updates the maze using the floodfill algorithm
-    void move_min(); // move to the adjacent square with minimum number (flood fill)
-    void move_max(); // move to the adjacent square with mazimum number (outward flood fill)
+    void move_toward_goal(); // move to the adjacent square with minimum number (flood fill)
 
 //  WALL DETECTION
+    float Forward_Distance(); // Returns the distance as read by the forward ir using SharpIR Library
+    float Left_Distance(); // Returns the distance as read by the left ir using SharpIR Library
+    float Right_Distance(); // Returns the distance as read by the right ir using SharpIR Library
     bool check_wall_forward(); // Returns true if there is a wall in front of the mouse else false.
     bool check_wall_left(); // Returns true if there is a wall to left of the mouse else false.
     bool check_wall_right(); // Returns true if there is a wall to right of the mouse else false.
 
 //  MOTOR
-    void go_forward(int ); // makes the mouse go certain distance forward
+    void go_forward(long ); // makes the mouse go certain distance forward
+    void go_backward(long ); // makes the mouse go certain distance backward
     void turn_right(); // turns the mouse a quarter circle to right
     void turn_left(); // turns the mouse a quarter circle to left
-
-//  ENCODER
-    int encoder_right();
-    int encoder_left();
+    void drive_straight(float, float); // makes the mouse move in a straight line using pid
 
 //
 // GLOBAL VARIABLES
 //
 //  FLOODFILL
     #define MAZE_SIZE 16
-    int maze[MAZE_SIZE][MAZE_SIZE][5]; // value,up,left,right,down
+
+    int goal_maze[MAZE_SIZE][MAZE_SIZE];
+    int wall_maze[MAZE_SIZE][MAZE_SIZE][4]; // up,left,right,down
 
     int facing = 0; // 0 for up; 1 for left; 2 for right; 3 for down
-    int current_row = 0;
-    int current_column = MAZE_SIZE-1;
+    int current_row = MAZE_SIZE-1;
+    int current_column = 0;
+    int GOAL_ROW = 3; // definition of the goal where the mouse wants to go to
+    int GOAL_COLUMN = 3;
 
 //  WALL DETECTION
-    #define FRONT_IR_PIN A0
-    #define LEFT_IR_PIN A1
-    #define RIGHT_IR_PIN A2
+    #define FRONT_IR_PIN A0 // front ir data pin
+    #define LEFT_IR_PIN A1 // left ir data pin
+    #define RIGHT_IR_PIN A2 // right ir data pin
+    #define IR_MODEL 430
 
     #define THRESHOLD_FORWARD 8 // the threshold to check if wall present forward
     #define THRESHOLD_LEFT 6 // the threshold to check if wall present left
     #define THRESHOLD_RIGHT 6 // the threshold to check if wall present right
-
-    static double distance_left=0;  //Converted to global variable as reading required by PID
-    static double distance_right=0; //Right IR distance measured
 
     #define FRONT_BACK_BLOCK_DISTANCE 160 // distance to move front and back in mm
     #define LEFT_RIGHT_BLOCK_DISTANCE 80 // distance to move after turning in mm
@@ -60,20 +60,32 @@
     #define RIGHT_MOTOR_2 5 // pin 2 for right motor
     #define LEFT_MOTOR_1 9 // pin 1 for left motor
     #define LEFT_MOTOR_2 17 // pin 2 for left motor
+
+    #define ERROR_THRESHOLD 5 // To define threshold value for error
     #define RIGHT_MOTOR_ENABLE 6 // enable pin for right motor
     #define LEFT_MOTOR_ENABLE 7 // enable pin for left MOTOR
-    #define MOTOR_MAX_SPEED 255 // max speed for the motors. reduce if necessary
+    int LEFT_MOTOR_SPEED=255; // max speed for the motors. reduce if necessary
+    int RIGHT_MOTOR_SPEED=255;
 
 // ENCODER
+    #include <SharpIR.h>
+    #include <Encoder.h>
+
     #define RIGHT_ENCODER_DISTANCE 19 // pin for checking distance using right encoder
     #define RIGHT_ENCODER_DIRECTION 18 // pin for checking direction of right encoder
     #define LEFT_ENCODER_DISTANCE 21 // pin for checking distance using left encoder
     #define LEFT_ENCODER_DIRECTION 20 // pin for checking direction of left encoder
 
-    #define Pi 3.14159
+    Encoder ENCODER_RIGHT(RIGHT_ENCODER_DISTANCE, RIGHT_ENCODER_DIRECTION);
+    Encoder ENCODER_LEFT(LEFT_ENCODER_DISTANCE, LEFT_ENCODER_DIRECTION);
 
-    volatile int right_value = 0; // reads right encoder value
-    volatile int left_value = 0; // reads left encoder value
+    //Global Flags
+    int RIGHT_ENCODER_FLAG=0;      //Encoder flags
+    int LEFT_ENCODER_FLAG=0;
+
+    #define PI 3.141593
+
+    static int previous_error = 0;    //Error used in PID
 
 
 void setup()
@@ -88,282 +100,164 @@ void setup()
     pinMode(LEFT_MOTOR_1, OUTPUT);
     pinMode(RIGHT_MOTOR_2, OUTPUT);
     pinMode(LEFT_MOTOR_2, OUTPUT);
-
-    // ENCODER
-    attachInterrupt(digitalPinToInterrupt(RIGHT_ENCODER_DISTANCE),encoder_right,RISING );
-    // attachInterrupt(digitalPinToInterrupt(RIGHT_ENCODER_DIRECTION),inr,RISING );
-    attachInterrupt(digitalPinToInterrupt(LEFT_ENCODER_DISTANCE),encoder_left,RISING );
-    // attachInterrupt(digitalPinToInterrupt(LEFT_ENCODER_DIRECTION),inr,RISING );
-
-    initialize_maze();
 }
 
 void loop()
 {
-    while(maze[current_row][current_column][0]!=0)
+    GOAL_ROW=(MAZE_SIZE/2);
+    GOAL_COLUMN=(MAZE_SIZE/2);
+
+    while(!((current_row==GOAL_ROW)&&(current_column==GOAL_COLUMN)))
     {
         update_walls();
         update_maze();
-        move_min();
+        move_toward_goal();
+        delay(500);
     }
 
-    turn_right();
-    turn_right();
+    GOAL_ROW=(MAZE_SIZE-1);
+    GOAL_COLUMN=0;
 
-    while(maze[current_row][current_column][0]!=0)
+    while(!((current_row==GOAL_ROW)&&(current_column==GOAL_COLUMN)))
     {
         update_walls();
         update_maze();
-        move_max();
+        move_toward_goal();
+        delay(500);
     }
-
-    turn_right();
-    turn_right();
 }
 
-void move_min()
+void move_toward_goal()
 {
     if(facing == 0) // up
     {
-        if(maze[current_row-1][current_column][0]==(maze[current_row][current_column][0]-1))
+        if(goal_maze[current_row-1][current_column]==(goal_maze[current_row][current_column]-1))
         {
             go_forward(FRONT_BACK_BLOCK_DISTANCE);
+            delay(500);
             current_row--;
         }
-        else if(maze[current_row][current_column-1][0]==(maze[current_row][current_column][0]-1))
+        else if(goal_maze[current_row][current_column-1]==(goal_maze[current_row][current_column]-1))
         {
             turn_left();
+            delay(500);
             go_forward(LEFT_RIGHT_BLOCK_DISTANCE);
+            delay(500);
             facing = 1;
             current_column--;
         }
-        else if(maze[current_row][current_column+1][0]==(maze[current_row][current_column][0]-1))
+        else if(goal_maze[current_row][current_column+1]==(goal_maze[current_row][current_column]-1))
         {
             turn_right();
+            delay(500);
             go_forward(LEFT_RIGHT_BLOCK_DISTANCE);
+            delay(500);
             facing = 2;
             current_column++;
         }
-        else if(maze[current_row+1][current_column][0]==(maze[current_row][current_column][0]-1))
+        else if(goal_maze[current_row+1][current_column]==(goal_maze[current_row][current_column]-1))
         {
-            turn_right();
-            turn_right();
-            go_forward(FRONT_BACK_BLOCK_DISTANCE);
-            facing = 3;
+            go_backward(FRONT_BACK_BLOCK_DISTANCE);
+            delay(500);
             current_row++;
         }
     }
     else if(facing == 1) // left
     {
-        if(maze[current_row][current_column-1][0]==(maze[current_row][current_column][0]-1))
+        if(goal_maze[current_row][current_column-1]==(goal_maze[current_row][current_column]-1))
         {
             go_forward(FRONT_BACK_BLOCK_DISTANCE);
+            delay(500);
             current_column--;
         }
-        else if(maze[current_row+1][current_column][0]==(maze[current_row][current_column][0]-1))
+        else if(goal_maze[current_row+1][current_column]==(goal_maze[current_row][current_column]-1))
         {
             turn_left();
+            delay(500);
             go_forward(LEFT_RIGHT_BLOCK_DISTANCE);
+            delay(500);
             facing = 3;
             current_row++;
         }
-        else if(maze[current_row-1][current_column][0]==(maze[current_row][current_column][0]-1))
+        else if(goal_maze[current_row-1][current_column]==(goal_maze[current_row][current_column]-1))
         {
             turn_right();
+            delay(500);
             go_forward(LEFT_RIGHT_BLOCK_DISTANCE);
+            delay(500);
             facing = 0;
             current_row--;
         }
-        else if(maze[current_row][current_column+1][0]==(maze[current_row][current_column][0]-1))
+        else if(goal_maze[current_row][current_column+1]==(goal_maze[current_row][current_column]-1))
         {
-            turn_right();
-            turn_right();
-            go_forward(FRONT_BACK_BLOCK_DISTANCE);
-            facing = 2;
+            go_backward(FRONT_BACK_BLOCK_DISTANCE);
+            delay(500);
             current_column++;
         }
     }
     else if(facing == 2) // right
     {
-        if(maze[current_row][current_column+1][0]==(maze[current_row][current_column][0]-1))
+        if(goal_maze[current_row][current_column+1]==(goal_maze[current_row][current_column]-1))
         {
             go_forward(FRONT_BACK_BLOCK_DISTANCE);
+            delay(500);
             current_column++;
         }
-        else if(maze[current_row-1][current_column][0]==(maze[current_row][current_column][0]-1))
+        else if(goal_maze[current_row-1][current_column]==(goal_maze[current_row][current_column]-1))
         {
             turn_left();
+            delay(500);
             go_forward(LEFT_RIGHT_BLOCK_DISTANCE);
+            delay(500);
             facing = 0;
             current_row--;
         }
-        else if(maze[current_row+1][current_column][0]==(maze[current_row][current_column][0]-1))
+        else if(goal_maze[current_row+1][current_column]==(goal_maze[current_row][current_column]-1))
         {
             turn_right();
+            delay(500);
             go_forward(LEFT_RIGHT_BLOCK_DISTANCE);
+            delay(500);
             facing = 3;
             current_row++;
         }
-        else if(maze[current_row][current_column-1][0]==(maze[current_row][current_column][0]-1))
+        else if(goal_maze[current_row][current_column-1]==(goal_maze[current_row][current_column]-1))
         {
-            turn_right();
-            turn_right();
-            go_forward(FRONT_BACK_BLOCK_DISTANCE);
-            facing = 1;
+            go_backward(FRONT_BACK_BLOCK_DISTANCE);
+            delay(500);
             current_column--;
         }
     }
     else if(facing == 3) // down
     {
-        if(maze[current_row+1][current_column][0]==(maze[current_row][current_column][0]-1))
+        if(goal_maze[current_row+1][current_column]==(goal_maze[current_row][current_column]-1))
         {
             go_forward(FRONT_BACK_BLOCK_DISTANCE);
+            delay(500);
             current_row++;
         }
-        else if(maze[current_row][current_column+1][0]==(maze[current_row][current_column][0]-1))
+        else if(goal_maze[current_row][current_column+1]==(goal_maze[current_row][current_column]-1))
         {
             turn_left();
+            delay(500);
             go_forward(LEFT_RIGHT_BLOCK_DISTANCE);
+            delay(500);
             facing = 2;
             current_column++;
         }
-        else if(maze[current_row][current_column-1][0]==(maze[current_row][current_column][0]-1))
+        else if(goal_maze[current_row][current_column-1]==(goal_maze[current_row][current_column]-1))
         {
             turn_right();
+            delay(500);
             go_forward(LEFT_RIGHT_BLOCK_DISTANCE);
+            delay(500);
             facing = 3;
             current_column--;
         }
-        else if(maze[current_row-1][current_column][0]==(maze[current_row][current_column][0]-1))
+        else if(goal_maze[current_row-1][current_column]==(goal_maze[current_row][current_column]-1))
         {
-            turn_right();
-            turn_right();
-            go_forward(FRONT_BACK_BLOCK_DISTANCE);
-            facing = 0;
-            current_row--;
-        }
-    }
-}
-
-void move_max()
-{
-    if(facing == 0) // up
-    {
-        if(maze[current_row-1][current_column][0]==(maze[current_row][current_column][0]+1))
-        {
-            go_forward(FRONT_BACK_BLOCK_DISTANCE);
-            current_row--;
-        }
-        else if(maze[current_row][current_column-1][0]==(maze[current_row][current_column][0]+1))
-        {
-            turn_left();
-            go_forward(LEFT_RIGHT_BLOCK_DISTANCE);
-            facing = 1;
-            current_column--;
-        }
-        else if(maze[current_row][current_column+1][0]==(maze[current_row][current_column][0]+1))
-        {
-            turn_right();
-            go_forward(LEFT_RIGHT_BLOCK_DISTANCE);
-            facing = 2;
-            current_column++;
-        }
-        else if(maze[current_row+1][current_column][0]==(maze[current_row][current_column][0]+1))
-        {
-            turn_right();
-            turn_right();
-            go_forward(FRONT_BACK_BLOCK_DISTANCE);
-            facing = 3;
-            current_row++;
-        }
-    }
-    else if(facing == 1) // left
-    {
-        if(maze[current_row][current_column-1][0]==(maze[current_row][current_column][0]+1))
-        {
-            go_forward(FRONT_BACK_BLOCK_DISTANCE);
-            current_column--;
-        }
-        else if(maze[current_row+1][current_column][0]==(maze[current_row][current_column][0]+1))
-        {
-            turn_left();
-            go_forward(LEFT_RIGHT_BLOCK_DISTANCE);
-            facing = 3;
-            current_row++;
-        }
-        else if(maze[current_row-1][current_column][0]==(maze[current_row][current_column][0]+1))
-        {
-            turn_right();
-            go_forward(LEFT_RIGHT_BLOCK_DISTANCE);
-            facing = 0;
-            current_row--;
-        }
-        else if(maze[current_row][current_column+1][0]==(maze[current_row][current_column][0]+1))
-        {
-            turn_right();
-            turn_right();
-            go_forward(FRONT_BACK_BLOCK_DISTANCE);
-            facing = 2;
-            current_column++;
-        }
-    }
-    else if(facing == 2) // right
-    {
-        if(maze[current_row][current_column+1][0]==(maze[current_row][current_column][0]+1))
-        {
-            go_forward(FRONT_BACK_BLOCK_DISTANCE);
-            current_column++;
-        }
-        else if(maze[current_row-1][current_column][0]==(maze[current_row][current_column][0]+1))
-        {
-            turn_left();
-            go_forward(LEFT_RIGHT_BLOCK_DISTANCE);
-            facing = 0;
-            current_row--;
-        }
-        else if(maze[current_row+1][current_column][0]==(maze[current_row][current_column][0]+1))
-        {
-            turn_right();
-            go_forward(LEFT_RIGHT_BLOCK_DISTANCE);
-            facing = 3;
-            current_row++;
-        }
-        else if(maze[current_row][current_column-1][0]==(maze[current_row][current_column][0]+1))
-        {
-            turn_right();
-            turn_right();
-            go_forward(FRONT_BACK_BLOCK_DISTANCE);
-            facing = 1;
-            current_column--;
-        }
-    }
-    else if(facing == 3) // down
-    {
-        if(maze[current_row+1][current_column][0]==(maze[current_row][current_column][0]+1))
-        {
-            go_forward(FRONT_BACK_BLOCK_DISTANCE);
-            current_row++;
-        }
-        else if(maze[current_row][current_column+1][0]==(maze[current_row][current_column][0]+1))
-        {
-            turn_left();
-            go_forward(LEFT_RIGHT_BLOCK_DISTANCE);
-            facing = 2;
-            current_column++;
-        }
-        else if(maze[current_row][current_column-1][0]==(maze[current_row][current_column][0]+1))
-        {
-            turn_right();
-            go_forward(LEFT_RIGHT_BLOCK_DISTANCE);
-            facing = 3;
-            current_column--;
-        }
-        else if(maze[current_row-1][current_column][0]==(maze[current_row][current_column][0]+1))
-        {
-            turn_right();
-            turn_right();
-            go_forward(FRONT_BACK_BLOCK_DISTANCE);
-            facing = 0;
+            go_backward(FRONT_BACK_BLOCK_DISTANCE);
+            delay(500);
             current_row--;
         }
     }
@@ -375,28 +269,28 @@ void update_walls()
     {
         if(check_wall_forward)
         {
-            maze[current_row][current_column][1] = 1;
+            wall_maze[current_row][current_column][0] = 1;
             if((current_row+1)<(MAZE_SIZE-1))
             {
-                maze[current_row + 1][current_column][4] = 1;
+                wall_maze[current_row + 1][current_column][3] = 1;
             }
         }
 
         if(check_wall_left)
         {
-            maze[current_row][current_column][2] = 1;
+            wall_maze[current_row][current_column][1] = 1;
             if((current_column-1)>0)
             {
-                maze[current_row][current_column - 1][3] = 1;
+                wall_maze[current_row][current_column - 1][2] = 1;
             }
         }
 
         if(check_wall_right)
         {
-            maze[current_row][current_column][3] = 1;
+            wall_maze[current_row][current_column][2] = 1;
             if((current_column+1)<(MAZE_SIZE-1))
             {
-                maze[current_row][current_column + 1][2] = 1;
+                wall_maze[current_row][current_column + 1][1] = 1;
             }
         }
     }
@@ -404,28 +298,28 @@ void update_walls()
     {
         if(check_wall_forward)
         {
-            maze[current_row][current_column][2] = 1;
+            wall_maze[current_row][current_column][1] = 1;
             if((current_column-1)>0)
             {
-                maze[current_row][current_column - 1][3] = 1;
+                wall_maze[current_row][current_column - 1][2] = 1;
             }
         }
 
         if(check_wall_left)
         {
-            maze[current_row][current_column][4] = 1;
+            wall_maze[current_row][current_column][3] = 1;
             if((current_row-1)<(MAZE_SIZE-1))
             {
-                maze[current_row - 1][current_column][1] = 1;
+                wall_maze[current_row - 1][current_column][0] = 1;
             }
         }
 
         if(check_wall_right)
         {
-            maze[current_row][current_column][1] = 1;
+            wall_maze[current_row][current_column][0] = 1;
             if((current_row+1)<(MAZE_SIZE-1))
             {
-                maze[current_row + 1][current_column][4] = 1;
+                wall_maze[current_row + 1][current_column][3] = 1;
             }
         }
     }
@@ -433,28 +327,28 @@ void update_walls()
     {
         if(check_wall_forward)
         {
-            maze[current_row][current_column][3] = 1;
+            wall_maze[current_row][current_column][2] = 1;
             if((current_column+1)<(MAZE_SIZE-1))
             {
-                maze[current_row][current_column + 1][2] = 1;
+                wall_maze[current_row][current_column + 1][1] = 1;
             }
         }
 
         if(check_wall_left)
         {
-            maze[current_row][current_column][1] = 1;
+            wall_maze[current_row][current_column][0] = 1;
             if((current_row+1)<(MAZE_SIZE-1))
             {
-                maze[current_row + 1][current_column][4] = 1;
+                wall_maze[current_row + 1][current_column][3] = 1;
             }
         }
 
         if(check_wall_right)
         {
-            maze[current_row][current_column][4] = 1;
+            wall_maze[current_row][current_column][3] = 1;
             if((current_row-1)<(MAZE_SIZE-1))
             {
-                maze[current_row - 1][current_column][1] = 1;
+                wall_maze[current_row - 1][current_column][0] = 1;
             }
         }
     }
@@ -462,28 +356,28 @@ void update_walls()
     {
         if(check_wall_forward)
         {
-            maze[current_row][current_column][4] = 1;
+            wall_maze[current_row][current_column][3] = 1;
             if((current_row-1)<(MAZE_SIZE-1))
             {
-                maze[current_row - 1][current_column][1] = 1;
+                wall_maze[current_row - 1][current_column][0] = 1;
             }
         }
 
         if(check_wall_left)
         {
-            maze[current_row][current_column][3] = 1;
+            wall_maze[current_row][current_column][2] = 1;
             if((current_column+1)<(MAZE_SIZE-1))
             {
-                maze[current_row][current_column + 1][2] = 1;
+                wall_maze[current_row][current_column + 1][1] = 1;
             }
         }
 
         if(check_wall_right)
         {
-            maze[current_row][current_column][2] = 1;
+            wall_maze[current_row][current_column][1] = 1;
             if((current_column-1)>0)
             {
-                maze[current_row][current_column - 1][3] = 1;
+                wall_maze[current_row][current_column - 1][2] = 1;
             }
         }
     }
@@ -496,71 +390,71 @@ void update_maze()
     {
         for(int j = 0; j < MAZE_SIZE; j++)
         {
-            if(!(((i==((MAZE_SIZE/2)-1))&&(j==((MAZE_SIZE/2)-1)))||((i==((MAZE_SIZE/2)-1))&&(j==(MAZE_SIZE/2)))||((i==(MAZE_SIZE/2))&&(j==((MAZE_SIZE/2)-1)))||((i==(MAZE_SIZE/2))&&(j==(MAZE_SIZE/2)))))
+            if(!((i==GOAL_ROW)&&(j==GOAL_COLUMN)))
             {
                 int min = -1;
-                if(maze[i][j][1]==0)
+                if(wall_maze[i][j][0]==0)
                 {
                     if(min==-1)
                     {
-                        min = maze[i-1][j][0];
+                        min = goal_maze[i-1][j];
                     }
                     else
                     {
-                        if(maze[i-1][j][0]<min)
+                        if(goal_maze[i-1][j]<min)
                         {
-                            min = maze[i-1][j][0];
+                            min = goal_maze[i-1][j];
                         }
                     }
                 }
-                if(maze[i][j][2]==0)
+                if(wall_maze[i][j][1]==0)
                 {
                     if(min==-1)
                     {
-                        min = maze[i][j-1][0];
+                        min = goal_maze[i][j-1];
                     }
                     else
                     {
-                        if(maze[i][j-1][0]<min)
+                        if(goal_maze[i][j-1]<min)
                         {
-                            min = maze[i][j-1][0];
+                            min = goal_maze[i][j-1];
                         }
                     }
                 }
-                if(maze[i][j][3]==0)
+                if(wall_maze[i][j][2]==0)
                 {
                     if(min==-1)
                     {
-                        min = maze[i][j+1][0];
+                        min = goal_maze[i][j+1];
                     }
                     else
                     {
-                        if(maze[i][j+1][0]<min)
+                        if(goal_maze[i][j+1]<min)
                         {
-                            min = maze[i][j+1][0];
+                            min = goal_maze[i][j+1];
                         }
                     }
                 }
-                if(maze[i][j][4]==0)
+                if(wall_maze[i][j][3]==0)
                 {
                     if(min==-1)
                     {
-                        min = maze[i+1][j][0];
+                        min = goal_maze[i+1][j];
                     }
                     else
                     {
-                        if(maze[i+1][j][0]<min)
+                        if(goal_maze[i+1][j]<min)
                         {
-                            min = maze[i+1][j][0];
+                            min = goal_maze[i+1][j];
                         }
                     }
                 }
 
                 if(min!=-1)
                 {
-                    if(maze[i][j][0] != (min+1))
+                    if(goal_maze[i][j] != (min+1))
                     {
-                        maze[i][j][0]=(min+1);
+                        goal_maze[i][j]=(min+1);
                         temp = 1;
                     }
                 }
@@ -580,74 +474,114 @@ void update_maze()
 
 void initialize_maze()
 {
-    for(int i = 0; i < (MAZE_SIZE/2); i++)
+    for(int i = 0; i < (GOAL_ROW); i++)
     {
-        for(int j = 0; j < (MAZE_SIZE/2); j++)
+        for(int j = 0; j < (GOAL_COLUMN); j++)
         {
-            maze[i][j][0] = (MAZE_SIZE-((i+1) + (j+1)));
+            goal_maze[i][j] = ((GOAL_ROW+GOAL_COLUMN)-(i + j));
 
             if(i == 0)
             {
-                maze[i][j][1] = 1; // for top boundary
+                wall_maze[i][j][0] = 1; // for top boundary
+            }
+
+            if(i == (MAZE_SIZE-1))
+            {
+                wall_maze[i][j][3] = 1; // for bottom boundary
             }
 
             if(j == 0)
             {
-                maze[i][j][2] = 1; // for left side boundary
-            }
-        }
-    }
-
-    for(int i = 0; i < (MAZE_SIZE/2); i++)
-    {
-        for(int j = (MAZE_SIZE/2); j < MAZE_SIZE; j++)
-        {
-            maze[i][j][0] = (MAZE_SIZE-((i+1) + ((MAZE_SIZE-(j+1))+1)));
-
-            if(i == 0)
-            {
-                maze[i][j][1] = 1; // for top boundary
+                wall_maze[i][j][1] = 1; // for left side boundary
             }
 
             if(j == (MAZE_SIZE-1))
             {
-                maze[i][j][3] = 1; // for right side boundary
+                wall_maze[i][j][2] = 1; // for right side boundary
             }
         }
     }
 
-    for(int i = (MAZE_SIZE/2); i < MAZE_SIZE; i++)
+    for(int i = 0; i < (GOAL_ROW); i++)
     {
-        for(int j = 0; j < (MAZE_SIZE/2); j++)
+        for(int j = (GOAL_COLUMN); j < MAZE_SIZE; j++)
         {
-            maze[i][j][0] = (MAZE_SIZE-(((MAZE_SIZE-(i+1))+1) + (j+1)));
+            goal_maze[i][j] = ((GOAL_ROW+GOAL_COLUMN)-((i+1) + (((GOAL_ROW+GOAL_COLUMN)-(j+1)))));
+
+            if(i == 0)
+            {
+                wall_maze[i][j][0] = 1; // for top boundary
+            }
 
             if(i == (MAZE_SIZE-1))
             {
-                maze[i][j][4] = 1; // for bottom boundary
+                wall_maze[i][j][3] = 1; // for bottom boundary
             }
 
             if(j == 0)
             {
-                maze[i][j][2] = 1; // for left side boundary
-            }
-        }
-    }
-
-    for(int i = (MAZE_SIZE/2); i < MAZE_SIZE; i++)
-    {
-        for(int j = (MAZE_SIZE/2); j < MAZE_SIZE; j++)
-        {
-            maze[i][j][0] = (MAZE_SIZE-(((MAZE_SIZE-(i+1))+1) + ((MAZE_SIZE-(j+1))+1)));
-
-            if(i == (MAZE_SIZE-1))
-            {
-                maze[i][j][4] = 1; // for bottom boundary
+                wall_maze[i][j][1] = 1; // for left side boundary
             }
 
             if(j == (MAZE_SIZE-1))
             {
-                maze[i][j][3] = 1; // for right side boundary
+                wall_maze[i][j][2] = 1; // for right side boundary
+            }
+        }
+    }
+
+    for(int i = (GOAL_ROW); i < MAZE_SIZE; i++)
+    {
+        for(int j = 0; j < (GOAL_COLUMN); j++)
+        {
+            goal_maze[i][j] = ((GOAL_ROW+GOAL_COLUMN)-((((GOAL_ROW+GOAL_COLUMN)-(i+1))) + (j+1)));
+
+            if(i == 0)
+            {
+                wall_maze[i][j][0] = 1; // for top boundary
+            }
+
+            if(i == (MAZE_SIZE-1))
+            {
+                wall_maze[i][j][3] = 1; // for bottom boundary
+            }
+
+            if(j == 0)
+            {
+                wall_maze[i][j][1] = 1; // for left side boundary
+            }
+
+            if(j == (MAZE_SIZE-1))
+            {
+                wall_maze[i][j][2] = 1; // for right side boundary
+            }
+        }
+    }
+
+    for(int i = (GOAL_ROW); i < MAZE_SIZE; i++)
+    {
+        for(int j = (GOAL_COLUMN); j < MAZE_SIZE; j++)
+        {
+            goal_maze[i][j] = ((GOAL_ROW+GOAL_COLUMN)-((((GOAL_ROW+GOAL_COLUMN)-(i+1))+1) + (((GOAL_ROW+GOAL_COLUMN)-(j+1))+1)));
+
+            if(i == 0)
+            {
+                wall_maze[i][j][0] = 1; // for top boundary
+            }
+
+            if(i == (MAZE_SIZE-1))
+            {
+                wall_maze[i][j][3] = 1; // for bottom boundary
+            }
+
+            if(j == 0)
+            {
+                wall_maze[i][j][1] = 1; // for left side boundary
+            }
+
+            if(j == (MAZE_SIZE-1))
+            {
+                wall_maze[i][j][2] = 1; // for right side boundary
             }
         }
     }
@@ -658,9 +592,7 @@ bool check_wall_forward()
       // check forward using IR
       // return false if wall or -1
       // return true if possible to go there
-      double distance = 12.08 * pow(analogRead(FRONT_IR_PIN) , -1.058) * 250; // Specific for the model of IR being used
-
-      if(distance<THRESHOLD_FORWARD) // there is no wall
+      if(Forward_Distance()<THRESHOLD_FORWARD) // there is no wall
       {
           return true;
       }
@@ -672,12 +604,7 @@ bool check_wall_forward()
 
 bool check_wall_left()
 {
-      // check left using IR
-      // return false if wall or -1
-      // return true if possible to go there
-      distance_left = 12.08 * pow(analogRead(LEFT_IR_PIN) , -1.058) * 250; // Specific for the model of IR being used
-
-      if(distance_left<THRESHOLD_LEFT) // there is no wall
+      if(Left_Distance()<THRESHOLD_LEFT) // there is no wall
       {
           return true;
       }
@@ -692,9 +619,7 @@ bool check_wall_right()
       // check right using IR
       // return false if wall or -1
       // return true if possible to go there
-      distance_right = 12.08 * pow(analogRead(RIGHT_IR_PIN) , -1.058) * 250; // Specific for the model of IR being used
-
-      if(distance_right<THRESHOLD_RIGHT) // there is no wall
+      if(Right_Distance()<THRESHOLD_RIGHT) // there is no wall
       {
           return true;
       }
@@ -704,144 +629,392 @@ bool check_wall_right()
       }
 }
 
-void go_forward(int distance)
+void go_forward(long distance)
 {
-    // go forward by distance
-    int right_flag = 0; // Flag to check if Right motor has moved the distance
-    int left_flag = 0; // Flag to check if Left motor has moved the Distance
-    left_value=0;
-    right_value=0;
-    while(right_flag+left_flag<2)
+    RIGHT_ENCODER_FLAG=0;
+    LEFT_ENCODER_FLAG=0;
+    distance=((distance*820)/(3*PI));
+    long distance_right=abs(ENCODER_RIGHT.read());
+    long distance_left=abs(ENCODER_LEFT.read());
+
+    long OldPositionRight=(-999);
+    long OldPositionLeft=(-999);
+    long NewPositionRight=0;
+    long NewPositionLeft=0;
+    while((RIGHT_ENCODER_FLAG+LEFT_ENCODER_FLAG)!=2)
     {
-        if(right_flag!=1)
+        if (Forward_Distance()<6)
         {
-            digitalWrite(RIGHT_MOTOR_1,HIGH); // Move forward until distance moved
-            digitalWrite(RIGHT_MOTOR_2,LOW);
-            analogWrite(RIGHT_MOTOR_ENABLE, MOTOR_MAX_SPEED);
+            analogWrite(LEFT_MOTOR_1,0);
+            analogWrite(LEFT_MOTOR_2,0);
+            analogWrite(RIGHT_MOTOR_1,0);
+            analogWrite(RIGHT_MOTOR_2,0);
+            return;
         }
-        if(left_flag!=1)
+        drive_straight(Right_Distance(),Left_Distance());
+        if(NewPositionRight<distance*0.5+distance_right)
         {
-           digitalWrite(LEFT_MOTOR_1,HIGH); // Move forward until distance moved
-           digitalWrite(LEFT_MOTOR_2,LOW);
-           analogWrite(LEFT_MOTOR_ENABLE, MOTOR_MAX_SPEED);
+            NewPositionRight = abs(ENCODER_RIGHT.read());
+            if (NewPositionRight != OldPositionRight)
+            {
+                OldPositionRight = NewPositionRight;
+            }
+            analogWrite(RIGHT_MOTOR_1,222);
+            analogWrite(RIGHT_MOTOR_2,0);
         }
-        if(encoder_right()>=distance) // Flag to check if the mouse has moved given distance
+        else if(NewPositionRight>(distance*0.5+distance_right)&&NewPositionRight<(distance*0.7+distance_right))
         {
-            right_flag=1;
+            analogWrite(RIGHT_MOTOR_1,132);
+            analogWrite(RIGHT_MOTOR_2,0);
+            NewPositionRight = abs(ENCODER_RIGHT.read());
+            if (NewPositionRight != OldPositionRight)
+            {
+                OldPositionRight = NewPositionRight;
+            }
         }
-        if(encoder_left()>=distance)
+        else if((NewPositionRight>(distance*0.7+distance_right)&&NewPositionRight<(distance+distance_right))&&!(LEFT_ENCODER_FLAG==1&&previous_error<0.2))
         {
-            left_flag=1;
+            analogWrite(RIGHT_MOTOR_1,88);
+            analogWrite(RIGHT_MOTOR_2,0);
+            NewPositionRight = abs(ENCODER_RIGHT.read());
+            if (NewPositionRight != OldPositionRight)
+            {
+                OldPositionRight = NewPositionRight;
+            }
+        }
+        else
+        {
+            analogWrite(RIGHT_MOTOR_1,0);
+            analogWrite(RIGHT_MOTOR_2,0);
+            RIGHT_ENCODER_FLAG=1;
+        }
+
+        if(NewPositionLeft<distance*0.5+distance_left)
+        {
+            NewPositionLeft = abs(ENCODER_LEFT.read());
+            if (NewPositionLeft != OldPositionLeft)
+            {
+                OldPositionLeft = NewPositionLeft;
+            }
+            analogWrite(LEFT_MOTOR_1,255);
+            analogWrite(LEFT_MOTOR_2,0);
+        }
+        else if(NewPositionLeft>(distance*0.5+distance_left)&&NewPositionLeft<(distance*0.7+distance_left))
+        {
+            analogWrite(LEFT_MOTOR_1,150);
+            analogWrite(LEFT_MOTOR_2,0);
+            NewPositionLeft = abs(ENCODER_LEFT.read());
+            if (NewPositionLeft != OldPositionLeft)
+            {
+                OldPositionLeft = NewPositionLeft;
+            }
+        }
+        else if((NewPositionLeft>(distance*0.7+distance_left)&&NewPositionLeft<(distance+distance_left))&&!(RIGHT_ENCODER_FLAG==1&&previous_error<0.2))
+        {
+            analogWrite(LEFT_MOTOR_1,98);
+            analogWrite(LEFT_MOTOR_2,0);
+            NewPositionLeft = abs(ENCODER_LEFT.read());
+            if (NewPositionLeft != OldPositionLeft)
+            {
+                OldPositionLeft = NewPositionLeft;
+            }
+        }
+        else
+        {
+            analogWrite(LEFT_MOTOR_1,0);
+            analogWrite(LEFT_MOTOR_2,0);
+            LEFT_ENCODER_FLAG=1;
+        }
+        if((RIGHT_ENCODER_FLAG+LEFT_ENCODER_FLAG)==2)
+        {
+            RIGHT_ENCODER_FLAG=0;
+            LEFT_ENCODER_FLAG=0;
+            LEFT_MOTOR_SPEED=255;
+            RIGHT_MOTOR_SPEED=255;
+            return;
         }
     }
+}
 
-    digitalWrite(RIGHT_MOTOR_1,LOW); // turn off right motor
-    digitalWrite(RIGHT_MOTOR_2,LOW);
-    analogWrite(RIGHT_MOTOR_ENABLE, 0);
+void go_backward(long distance)
+{
+    RIGHT_ENCODER_FLAG=0;
+    LEFT_ENCODER_FLAG=0;
+    distance=((distance*820)/(3*PI))*0.9;
+    long distance_right=(ENCODER_RIGHT.read());
+    long distance_left=(ENCODER_LEFT.read());
+    long OldPositionRight=(-999);
+    long OldPositionLeft=(-999);
+    long NewPositionRight=(ENCODER_RIGHT.read());
+    long NewPositionLeft=(ENCODER_LEFT.read());
+    while((RIGHT_ENCODER_FLAG!=1)&&(LEFT_ENCODER_FLAG!=1))                //Some shortcoming is not allowing left motor to ro rotate fully
+    {
+        drive_straight(Left_Distance(),Right_Distance());
+        if(NewPositionRight>-distance*0.5+distance_right)
+        {
+            NewPositionRight = (ENCODER_RIGHT.read());
+            if (NewPositionRight != OldPositionRight)
+            {
+            OldPositionRight = NewPositionRight;
+            }
+            analogWrite(RIGHT_MOTOR_2,255);
+            analogWrite(RIGHT_MOTOR_1,0);
+        }
+        else if(NewPositionRight<(-distance*0.5+distance_right)&&NewPositionRight>(-distance*0.7+distance_right))
+        {
+            analogWrite(RIGHT_MOTOR_2,150);
+            analogWrite(RIGHT_MOTOR_1,0);
+            NewPositionRight = (ENCODER_RIGHT.read());
+            if (NewPositionRight != OldPositionRight)
+            {
+                OldPositionRight = NewPositionRight;
+            }
+        }
+        else if((NewPositionRight<(-distance*0.7+distance_right)&&NewPositionRight>(-distance*0.85+distance_right)))
+        {
+            analogWrite(RIGHT_MOTOR_2,123);
+            analogWrite(RIGHT_MOTOR_1,0);
+            NewPositionRight = abs(ENCODER_RIGHT.read());
+            if (NewPositionRight != OldPositionRight)
+            {
+                OldPositionRight = NewPositionRight;
+            }
+        }
+        else
+        {
+            analogWrite(RIGHT_MOTOR_2,0);
+            analogWrite(RIGHT_MOTOR_1,0);
+            RIGHT_ENCODER_FLAG=1;
+        }
 
-    digitalWrite(LEFT_MOTOR_1,LOW); // turn off left motor
-    digitalWrite(LEFT_MOTOR_2,LOW);
-    analogWrite(LEFT_MOTOR_ENABLE, 0);
+        if(NewPositionLeft>-distance*0.5+distance_left)
+        {
+            NewPositionLeft = (ENCODER_LEFT.read());
+            if (NewPositionLeft != OldPositionLeft)
+            {
+                OldPositionLeft = NewPositionLeft;
+            }
+            analogWrite(LEFT_MOTOR_2,200);
+            analogWrite(LEFT_MOTOR_1,0);
+        }
+        else if(NewPositionLeft<(-distance*0.5+distance_left)&&NewPositionLeft>(-distance*0.7+distance_left))
+        {
+            analogWrite(LEFT_MOTOR_2,137);
+            analogWrite(LEFT_MOTOR_1,0);
+            NewPositionLeft = (ENCODER_LEFT.read());
+            if (NewPositionLeft != OldPositionLeft)
+            {
+                OldPositionLeft = NewPositionLeft;
+            }
+        }
+        else if((NewPositionLeft<(-distance*0.7+distance_left)&&NewPositionLeft>(-distance+distance_left)))
+        {
+            analogWrite(LEFT_MOTOR_2,125);
+            analogWrite(LEFT_MOTOR_1,0);
+            NewPositionLeft = abs(ENCODER_LEFT.read());
+            if (NewPositionLeft != OldPositionLeft)
+            {
+                OldPositionLeft = NewPositionLeft;
+            }
+        }
+        else
+        {
+            analogWrite(LEFT_MOTOR_1,0);
+            analogWrite(LEFT_MOTOR_2,0);
+            LEFT_ENCODER_FLAG=1;
+        }
+        if((RIGHT_ENCODER_FLAG+LEFT_ENCODER_FLAG)==2)
+        {
+            RIGHT_ENCODER_FLAG=0;
+            LEFT_ENCODER_FLAG=0;
+            LEFT_MOTOR_SPEED=255;
+            RIGHT_MOTOR_SPEED=255;
+            return;
+        }
+    }
 }
 
 void turn_right()
 {
-    // turn right
+    // turn right and go one block ahead
     // need to do some axis checking with maze and edit
-    //
-    //   Distance between centres of the 2 wheels~~101mm
-    //   Quarter circle traversed by each wheel=pi*50.5/2=79.32mm
-    //
-    int flag = 0;
-    left_value = 0;
-    right_value = 0;
-    while(flag<1)
+
+    // Distance between centres of the 2 wheels~~101mm
+    // Quarter circle traversed by each wheel=pi*50.5/2=79.32mm
+
+    RIGHT_ENCODER_FLAG=0;
+    LEFT_ENCODER_FLAG=0;
+    long distance=372*1.02+abs(ENCODER_LEFT.read());
+    long OldPositionRight  = -999;
+    long OldPositionLeft  = -999;
+    long NewPositionRight=0;
+    long NewPositionLeft=0;
+
+    if (NewPositionRight != OldPositionRight)
     {
-          if(flag!=1)
-          {
-                digitalWrite(RIGHT_MOTOR_1,LOW);
-                digitalWrite(RIGHT_MOTOR_2,HIGH);
-                digitalWrite(LEFT_MOTOR_1,HIGH);
-                digitalWrite(LEFT_MOTOR_2,LOW);
-                analogWrite(RIGHT_MOTOR_ENABLE, MOTOR_MAX_SPEED);
-                analogWrite(LEFT_MOTOR_ENABLE, MOTOR_MAX_SPEED);
-          }
-          if(encoder_right()>=79)
-          {
-                flag=1;
-          }
-     }
-
-     digitalWrite(RIGHT_MOTOR_1,LOW); // turn off right motor
-     digitalWrite(RIGHT_MOTOR_2,LOW);
-     analogWrite(RIGHT_MOTOR_ENABLE, 0);
-
-     digitalWrite(LEFT_MOTOR_1,LOW); // turn off left motor
-     digitalWrite(LEFT_MOTOR_2,LOW);
-     analogWrite(LEFT_MOTOR_ENABLE, 0);
+        OldPositionRight = NewPositionRight;
+    }
+    if (NewPositionLeft != OldPositionLeft)
+    {
+        OldPositionLeft = NewPositionLeft;
+    }
+    while(RIGHT_ENCODER_FLAG+LEFT_ENCODER_FLAG<2)
+    {
+        if(RIGHT_ENCODER_FLAG!=1)
+        {
+            analogWrite(RIGHT_MOTOR_2,255);
+            analogWrite(RIGHT_MOTOR_1,0);
+        }
+        if(LEFT_ENCODER_FLAG!=1)
+        {
+            analogWrite(LEFT_MOTOR_2,0);
+            analogWrite(LEFT_MOTOR_1,255);
+        }
+        if(NewPositionLeft<distance)
+        {
+            NewPositionLeft = abs(ENCODER_LEFT.read());
+            if (NewPositionLeft != OldPositionLeft)
+            {
+                OldPositionLeft = NewPositionLeft;
+            }
+        }
+        else
+        {
+            LEFT_ENCODER_FLAG=1;
+            analogWrite(LEFT_MOTOR_2,0);
+            analogWrite(LEFT_MOTOR_1,0);
+        }
+        if(NewPositionRight<distance)
+        {
+            NewPositionRight = abs(ENCODER_LEFT.read());
+            if (NewPositionRight != OldPositionRight)
+            {
+                OldPositionRight = NewPositionRight;
+            }
+        }
+        else
+        {
+            RIGHT_ENCODER_FLAG=1;
+            analogWrite(RIGHT_MOTOR_2,0);
+            analogWrite(RIGHT_MOTOR_1,0);
+        }
+    }
 }
 
 void turn_left()
 {
-    // turn left
+    // turn left and go one block ahead
     // need to do some axis checking with maze and edit
-    //
+
     //   Distance between centres of the 2 wheels~~101mm
     //   Quarter circle traversed by each wheel=pi*50.5/2=79.32mm
-    //
-    int flag = 0;
-    left_value = 0;
-    right_value = 0;
-    while(flag<1)
+
+    RIGHT_ENCODER_FLAG=0;
+    LEFT_ENCODER_FLAG=0;
+    long distance=420+abs(ENCODER_RIGHT.read());    //Though actual value is 345, I had to compensate for slipping
+    long OldPositionRight  = -999;
+    long OldPositionLeft  = -999;
+    long NewPositionRight=0;
+    long NewPositionLeft=0;
+
+    if (NewPositionRight != OldPositionRight)
     {
-          if(flag!=1)
-          {
-                digitalWrite(RIGHT_MOTOR_1,HIGH);
-                digitalWrite(RIGHT_MOTOR_2,LOW);
-                digitalWrite(LEFT_MOTOR_1,LOW);
-                digitalWrite(LEFT_MOTOR_2,HIGH);
-                analogWrite(LEFT_MOTOR_ENABLE, MOTOR_MAX_SPEED);
-                analogWrite(RIGHT_MOTOR_ENABLE, MOTOR_MAX_SPEED);
-          }
-          if(encoder_left()>=79)
-          {
-                flag=1;
-          }
-     }
+      OldPositionRight = NewPositionRight;
+    }
+    if (NewPositionLeft != OldPositionLeft)
+    {
+      OldPositionLeft = NewPositionLeft;
+    }
 
-     digitalWrite(RIGHT_MOTOR_1,LOW); // turn off right motor
-     digitalWrite(RIGHT_MOTOR_2,LOW);
-     analogWrite(RIGHT_MOTOR_ENABLE, 0);
+    while(RIGHT_ENCODER_FLAG+LEFT_ENCODER_FLAG<2)
+    {
+        if(RIGHT_ENCODER_FLAG!=1)
+        {
+            analogWrite(RIGHT_MOTOR_2,0);
+            analogWrite(RIGHT_MOTOR_1,255);
+        }
+        if(LEFT_ENCODER_FLAG!=1)
+        {
+            analogWrite(LEFT_MOTOR_2,255);
+            analogWrite(LEFT_MOTOR_1,0);
+        }
+        if(NewPositionLeft<distance)
+        {
+            NewPositionLeft = abs(ENCODER_RIGHT.read());
+            if (NewPositionLeft != OldPositionLeft)
+            {
+              OldPositionLeft = NewPositionLeft;
+            }
+        }
+        else
+        {
+            LEFT_ENCODER_FLAG=1;
+            analogWrite(LEFT_MOTOR_2,0);
+            analogWrite(LEFT_MOTOR_1,0);
+        }
+        if(NewPositionRight<distance)
+        {
+            NewPositionRight = abs(ENCODER_RIGHT.read());
+            if (NewPositionRight != OldPositionRight)
+            {
+                OldPositionRight = NewPositionRight;
+            }
+        }
+        else
+        {
+            RIGHT_ENCODER_FLAG=1;
+            analogWrite(RIGHT_MOTOR_2,0);
+            analogWrite(RIGHT_MOTOR_1,0);
+        }
+    }
+}
+void drive_straight( float distance_right, float distance_left) //To be included in Forward
+{
+    static int Kp = 32, Ki = 1, Kd = 4;      // constants for scaling P I D effects (will need adjusting)
+    static int error, P, I = 0,  D;          // error variables
+    int total;
 
-     digitalWrite(LEFT_MOTOR_1,LOW); // turn off left motor
-     digitalWrite(LEFT_MOTOR_2,LOW);
-     analogWrite(LEFT_MOTOR_ENABLE, 0);
+    error = distance_left - distance_right;
+    if((abs(error)<ERROR_THRESHOLD)&&abs(error)>0.2)
+    {
+        P = error * Kp;
+
+        //I = (I + error)*Ki;
+
+        D = (error - previous_error) * Kd;                   // may take out
+        previous_error = error;
+
+        total = (P+I+D);
+
+        {
+            LEFT_MOTOR_SPEED -= (total);
+            LEFT_MOTOR_SPEED = constrain(LEFT_MOTOR_SPEED, 120, 255);   // may need to adjust
+
+            RIGHT_MOTOR_SPEED += (total);
+            RIGHT_MOTOR_SPEED = constrain(RIGHT_MOTOR_SPEED, 120, 255);
+
+            analogWrite(LEFT_MOTOR_ENABLE, LEFT_MOTOR_SPEED);      // enable pins and values
+                                                               // must be global
+            analogWrite(RIGHT_MOTOR_ENABLE, RIGHT_MOTOR_SPEED);
+        }
+    }
+    LEFT_MOTOR_SPEED=255;
+    RIGHT_MOTOR_SPEED=255;
+}
+float Forward_Distance()
+{
+    SharpIR SharpIR(FRONT_IR_PIN, IR_MODEL);
+    return SharpIR.distance();
 }
 
-int encoder_right()
+float Left_Distance()
 {
-      // returns the distance as recorded by the right encoder
-      if(digitalRead(RIGHT_ENCODER_DISTANCE) == HIGH) // ISR for right motor
-      {
-          right_value++; // Only 1 interrupt used as 2nd interrupt was adding to redundancy
-      }
-      if(digitalRead(RIGHT_ENCODER_DISTANCE) == LOW)
-      {
-          right_value--;
-      }
-      return ((right_value/205)*Pi*30); // distance travelled by right motor in mm
+    SharpIR SharpIR(LEFT_IR_PIN, IR_MODEL);
+    return (SharpIR.distance() + 0.45); //accounting for difference in values
 }
 
-int encoder_left()
+float Right_Distance()
 {
-      // returns the distance as recorded by the left encoder
-      if(digitalRead(LEFT_ENCODER_DISTANCE) == HIGH) // ISR for left motor
-      {
-          left_value++; // Only 1 interrupt used as 2nd interrupt was adding to redundancy
-      }
-      if(digitalRead(LEFT_ENCODER_DISTANCE) == LOW)
-      {
-          left_value--;
-      }
-      return ((left_value/205)*Pi*30); // distance travelled by left motor in mm
+    SharpIR SharpIR(RIGHT_IR_PIN, IR_MODEL);
+    return SharpIR.distance();
 }

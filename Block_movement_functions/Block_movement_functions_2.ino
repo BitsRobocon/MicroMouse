@@ -4,12 +4,12 @@
  * Author : Hardik Jain (nepython)
  * Last update :29/12/19
  */
- 
-# define error_threshold 5                  //To be defined error of threshold
+
+#define ERROR_THRESHOLD 5  // To be defined error of threshold
 #define RIGHT_MOTOR_ENABLE 6 // enable pin for right motor
 #define LEFT_MOTOR_ENABLE 7  // enable pin for left MOTOR
 #include <SharpIR.h>
-#include<Encoder.h> 
+#include <Encoder.h>
 // Change these two numbers to the pins connected to your encoder.
 //   Best Performance: both pins have interrupt capability
 //   Good Performance: only the first pin has interrupt capability
@@ -20,21 +20,29 @@
     #define RIGHT_MOTOR_2 5  // pin 2 for right motor
     #define LEFT_MOTOR_1 9   // pin 1 for left motor
     #define LEFT_MOTOR_2 17  // pin 2 for left motor
-    
-Encoder myEnc1(19,18);
-Encoder myEnc2(20,21);
+
+// ENCODER
+    #define RIGHT_ENCODER_DISTANCE 19 // pin for checking distance using right encoder
+    #define RIGHT_ENCODER_DIRECTION 18 // pin for checking direction of right encoder
+    #define LEFT_ENCODER_DISTANCE 21 // pin for checking distance using left encoder
+    #define LEFT_ENCODER_DIRECTION 20 // pin for checking direction of left encoder
+
+Encoder ENCODER_RIGHT(RIGHT_ENCODER_DISTANCE, RIGHT_ENCODER_DIRECTION);
+Encoder ENCODER_LEFT(LEFT_ENCODER_DISTANCE, LEFT_ENCODER_DIRECTION);
 //   avoid using pins with LEDs attached
 
-//Global Flags 
-int a=0;      //Encoder flags
-int b=0; 
+//Global Flags
+int RIGHT_ENCODER_FLAG=0;      //Encoder flags
+int LEFT_ENCODER_FLAG=0;
+
+#define PI 3.141593
 
 //int l=0;      //Flags of previous move
 //int f=0;
 //int r=0;
 
-int L_enable_val=255;   //ENABLE Pins Values
-int R_enable_val=255;
+int LEFT_MOTOR_SPEED=255;   //ENABLE Pins Values
+int RIGHT_MOTOR_SPEED=255;
 
 static int previous_error = 0;    //Error used in PID
 
@@ -44,10 +52,10 @@ void turn_right();
 void turn_left();
 void drive_straight(float, float);  //Right and Left IR values respectively
 
-#define front_ir A0
-#define left_ir A1
-#define right_ir A2
-#define model 430
+#define FRONT_IR_PIN A0
+#define LEFT_IR_PIN A1
+#define RIGHT_IR_PIN A2
+#define IR_MODEL 430
 // ir: the pin where your sensor is attached
 // model: an int that determines your sensor:  1080 for GP2Y0A21Y
 //                                            20150 for GP2Y0A02Y
@@ -55,34 +63,25 @@ void drive_straight(float, float);  //Right and Left IR values respectively
 
 
 void setup() {
-  Serial.begin(9600);    
+  Serial.begin(9600);
 }
 
-void loop() 
+void loop()
 {}
 
-void go_forward(long distance) 
+void go_forward(long distance)
 {
-  distance=((distance*820)/(3*3.141593));
-  long distance1=abs(myEnc1.read());
-  long distance2=abs(myEnc2.read());   
- /* if(l==1)
-    distance=distance+abs(myEnc2.read());
-    
-  if(r==1)
-    distance1=abs(myEnc1.read());
+  distance=((distance*820)/(3*PI));
+  long distance_right=abs(ENCODER_RIGHT.read());
+  long distance_left=abs(ENCODER_LEFT.read());
 
-  if(f==1)
-    distance=distance+(abs(myEnc1.read()))+abs(myEnc1.read()/2);*/
-  
-  long oldPosition1=(-999);
-  long oldPosition2=(-999);
-  //long distance=1392;
-  long newPosition1=0;
-  long newPosition2=0;
-  while((a+b)!=2)
+  long OldPositionRight=(-999);
+  long OldPositionLeft=(-999);
+  long NewPositionRight=0;
+  long NewPositionLeft=0;
+  while((RIGHT_ENCODER_FLAG+LEFT_ENCODER_FLAG)!=2)
   {
-    if ( f()<6)
+    if (Forward_Distance()<6)
     {
       analogWrite(LEFT_MOTOR_1,0);
       analogWrite(LEFT_MOTOR_2,0);
@@ -90,208 +89,182 @@ void go_forward(long distance)
       analogWrite(RIGHT_MOTOR_2,0);
       return;
     }
-    drive_straight(r(),l());
-    if(newPosition1<distance*0.5+distance1)
+    drive_straight(Right_Distance(),Left_Distance());
+    if(NewPositionRight<distance*0.5+distance_right)
     {
-      newPosition1 = abs(myEnc1.read());
-      if (newPosition1 != oldPosition1) 
+      NewPositionRight = abs(ENCODER_RIGHT.read());
+      if (NewPositionRight != OldPositionRight)
       {
-        oldPosition1 = newPosition1;
-        Serial.println(-newPosition1);
+        OldPositionRight = NewPositionRight;
       }
       analogWrite(RIGHT_MOTOR_1,222);
       analogWrite(RIGHT_MOTOR_2,0);
     }
-    else if(newPosition1>(distance*0.5+distance1)&&newPosition1<(distance*0.7+distance1))
+    else if(NewPositionRight>(distance*0.5+distance_right)&&NewPositionRight<(distance*0.7+distance_right))
     {
       analogWrite(RIGHT_MOTOR_1,132);
-      analogWrite(RIGHT_MOTOR_2,0); 
-      newPosition1 = abs(myEnc1.read());
-      if (newPosition1 != oldPosition1) 
+      analogWrite(RIGHT_MOTOR_2,0);
+      NewPositionRight = abs(ENCODER_RIGHT.read());
+      if (NewPositionRight != OldPositionRight)
       {
-        oldPosition1 = newPosition1;
-        Serial.println(-newPosition1);
+        OldPositionRight = NewPositionRight;
       }
     }
-    else if((newPosition1>(distance*0.7+distance1)&&newPosition1<(distance+distance1))&&!(b==1&&previous_error<0.2))
+    else if((NewPositionRight>(distance*0.7+distance_right)&&NewPositionRight<(distance+distance_right))&&!(b==1&&previous_error<0.2))
     {
       analogWrite(RIGHT_MOTOR_1,88);
-      analogWrite(RIGHT_MOTOR_2,0); 
-      newPosition1 = abs(myEnc1.read());
-      if (newPosition1 != oldPosition1) 
+      analogWrite(RIGHT_MOTOR_2,0);
+      NewPositionRight = abs(ENCODER_RIGHT.read());
+      if (NewPositionRight != OldPositionRight)
       {
-        oldPosition1 = newPosition1;
-        Serial.println(-newPosition1);
+        OldPositionRight = NewPositionRight;
       }
     }
     else
     {
       analogWrite(RIGHT_MOTOR_1,0);
       analogWrite(RIGHT_MOTOR_2,0);
-      //Serial.println("a=1");
-      a=1;
+      RIGHT_ENCODER_FLAG=1;
     }
 
-    if(newPosition2<distance*0.5+distance2)
+    if(NewPositionLeft<distance*0.5+distance_left)
     {
-      newPosition2 = abs(myEnc2.read());
-      if (newPosition2 != oldPosition2) 
+      NewPositionLeft = abs(ENCODER_LEFT.read());
+      if (NewPositionLeft != OldPositionLeft)
       {
-        oldPosition2 = newPosition2;
-        Serial.println(newPosition2);
+        OldPositionLeft = NewPositionLeft;
       }
       analogWrite(LEFT_MOTOR_1,255);
       analogWrite(LEFT_MOTOR_2,0);
     }
-    else if(newPosition2>(distance*0.5+distance2)&&newPosition2<(distance*0.7+distance2))
+    else if(NewPositionLeft>(distance*0.5+distance_left)&&NewPositionLeft<(distance*0.7+distance_left))
     {
       analogWrite(LEFT_MOTOR_1,150);
-      analogWrite(LEFT_MOTOR_2,0); 
-      newPosition2 = abs(myEnc2.read());
-      if (newPosition2 != oldPosition2) 
+      analogWrite(LEFT_MOTOR_2,0);
+      NewPositionLeft = abs(ENCODER_LEFT.read());
+      if (NewPositionLeft != OldPositionLeft)
       {
-        oldPosition2 = newPosition2;
-        Serial.println(newPosition2);
+        OldPositionLeft = NewPositionLeft;
       }
     }
-    else if((newPosition2>(distance*0.7+distance2)&&newPosition2<(distance+distance2))&&!(a==1&&previous_error<0.2))
+    else if((NewPositionLeft>(distance*0.7+distance_left)&&NewPositionLeft<(distance+distance_left))&&!(a==1&&previous_error<0.2))
     {
       analogWrite(LEFT_MOTOR_1,98);
-      analogWrite(LEFT_MOTOR_2,0); 
-      newPosition2 = abs(myEnc2.read());
-      if (newPosition2 != oldPosition2) 
+      analogWrite(LEFT_MOTOR_2,0);
+      NewPositionLeft = abs(ENCODER_LEFT.read());
+      if (NewPositionLeft != OldPositionLeft)
       {
-        oldPosition2 = newPosition2;
-        Serial.println(newPosition2);
+        OldPositionLeft = NewPositionLeft;
       }
     }
-    else 
+    else
     {
       analogWrite(LEFT_MOTOR_1,0);
       analogWrite(LEFT_MOTOR_2,0);
-      //Serial.println("b=1");
-      b=1;
+      LEFT_ENCODER_FLAG=1;
     }
     if((a+b)==2)
     {
-      a=0;
-      b=0;
-      L_enable_val=255;
-      R_enable_val=255;
+      RIGHT_ENCODER_FLAG=0;
+      LEFT_ENCODER_FLAG=0;
+      LEFT_MOTOR_SPEED=255;
+      RIGHT_MOTOR_SPEED=255;
       return;
     }
   }
  }
 
-void go_backward(long distance) 
+void go_backward(long distance)
 {
-  distance=((distance*820)/(3*3.141593))*0.9;
-  long distance1=(myEnc1.read());
-  long distance2=(myEnc2.read());   
- /* if(l==1)
-    distance=distance+abs(myEnc2.read());
-    
-  if(r==1)
-    distance1=abs(myEnc1.read());
-
-  if(f==1)
-    distance=distance+(abs(myEnc1.read()))+abs(myEnc1.read()/2);*/
-  
-  long oldPosition1=(-999);
-  long oldPosition2=(-999);
-  //long distance=1392;
-  long newPosition1=(myEnc1.read());
-  long newPosition2=(myEnc2.read());
-  while((a!=1)&&(b!=1))                //Some shortcoming is not allowing left motor to ro rotate fully
+  distance=((distance*820)/(3*PI))*0.9;
+  long distance_right=(ENCODER_RIGHT.read());
+  long distance_left=(ENCODER_LEFT.read());
+  long OldPositionRight=(-999);
+  long OldPositionLeft=(-999);
+  long NewPositionRight=(ENCODER_RIGHT.read());
+  long NewPositionLeft=(ENCODER_LEFT.read());
+  while((RIGHT_ENCODER_FLAG!=1)&&(LEFT_ENCODER_FLAG!=1))                //Some shortcoming is not allowing left motor to ro rotate fully
   {
-    drive_straight(l(),r());
-    if(newPosition1>-distance*0.5+distance1)
+    drive_straight(Left_Distance(),Right_Distance());
+    if(NewPositionRight>-distance*0.5+distance_right)
     {
-      newPosition1 = (myEnc1.read());
-      if (newPosition1 != oldPosition1) 
+      NewPositionRight = (ENCODER_RIGHT.read());
+      if (NewPositionRight != OldPositionRight)
       {
-        oldPosition1 = newPosition1;
-        Serial.println(newPosition1);
+        OldPositionRight = NewPositionRight;
       }
       analogWrite(RIGHT_MOTOR_2,255);
       analogWrite(RIGHT_MOTOR_1,0);
     }
-    else if(newPosition1<(-distance*0.5+distance1)&&newPosition1>(-distance*0.7+distance1))
+    else if(NewPositionRight<(-distance*0.5+distance_right)&&NewPositionRight>(-distance*0.7+distance_right))
     {
       analogWrite(RIGHT_MOTOR_2,150);
-      analogWrite(RIGHT_MOTOR_1,0); 
-      newPosition1 = (myEnc1.read());
-      if (newPosition1 != oldPosition1) 
+      analogWrite(RIGHT_MOTOR_1,0);
+      NewPositionRight = (ENCODER_RIGHT.read());
+      if (NewPositionRight != OldPositionRight)
       {
-        oldPosition1 = newPosition1;
-        Serial.println(newPosition1);
+        OldPositionRight = NewPositionRight;
       }
     }
-    else if((newPosition1<(-distance*0.7+distance1)&&newPosition1>(-distance*0.85+distance1)))
+    else if((NewPositionRight<(-distance*0.7+distance_right)&&NewPositionRight>(-distance*0.85+distance_right)))
     {
       analogWrite(RIGHT_MOTOR_2,123);
-      analogWrite(RIGHT_MOTOR_1,0); 
-      newPosition1 = abs(myEnc1.read());
-      if (newPosition1 != oldPosition1) 
+      analogWrite(RIGHT_MOTOR_1,0);
+      NewPositionRight = abs(ENCODER_RIGHT.read());
+      if (NewPositionRight != OldPositionRight)
       {
-        oldPosition1 = newPosition1;
-        Serial.println(newPosition1);
+        OldPositionRight = NewPositionRight;
       }
     }
     else
     {
       analogWrite(RIGHT_MOTOR_2,0);
       analogWrite(RIGHT_MOTOR_1,0);
-      Serial.println("a=1");
-      a=1;
+      RIGHT_ENCODER_FLAG=1;
     }
 
-    if(newPosition2>-distance*0.5+distance2)
+    if(NewPositionLeft>-distance*0.5+distance_left)
     {
-      newPosition2 = (myEnc2.read());
-      if (newPosition2 != oldPosition2) 
+      NewPositionLeft = (ENCODER_LEFT.read());
+      if (NewPositionLeft != OldPositionLeft)
       {
-        oldPosition2 = newPosition2;
-        Serial.println(newPosition2);
+        OldPositionLeft = NewPositionLeft;
       }
       analogWrite(LEFT_MOTOR_2,200);
       analogWrite(LEFT_MOTOR_1,0);
     }
-    else if(newPosition2<(-distance*0.5+distance2)&&newPosition2>(-distance*0.7+distance2))
+    else if(NewPositionLeft<(-distance*0.5+distance_left)&&NewPositionLeft>(-distance*0.7+distance_left))
     {
       analogWrite(LEFT_MOTOR_2,137);
-      analogWrite(LEFT_MOTOR_1,0); 
-      newPosition2 = (myEnc2.read());
-      if (newPosition2 != oldPosition2) 
+      analogWrite(LEFT_MOTOR_1,0);
+      NewPositionLeft = (ENCODER_LEFT.read());
+      if (NewPositionLeft != OldPositionLeft)
       {
-        oldPosition2 = newPosition2;
-        Serial.println(newPosition2);
+        OldPositionLeft = NewPositionLeft;
       }
     }
-    else if((newPosition2<(-distance*0.7+distance2)&&newPosition2>(-distance+distance2)))
+    else if((NewPositionLeft<(-distance*0.7+distance_left)&&NewPositionLeft>(-distance+distance_left)))
     {
       analogWrite(LEFT_MOTOR_2,125);
-      analogWrite(LEFT_MOTOR_1,0); 
-      newPosition2 = abs(myEnc2.read());
-      if (newPosition2 != oldPosition2) 
+      analogWrite(LEFT_MOTOR_1,0);
+      NewPositionLeft = abs(ENCODER_LEFT.read());
+      if (NewPositionLeft != OldPositionLeft)
       {
-        oldPosition2 = newPosition2;
-        Serial.println(newPosition2);
+        OldPositionLeft = NewPositionLeft;
       }
     }
-    else 
+    else
     {
       analogWrite(LEFT_MOTOR_1,0);
       analogWrite(LEFT_MOTOR_2,0);
-      Serial.println("b=1");
-      b=1;
+      LEFT_ENCODER_FLAG=1;
     }
-    if((a+b)==2)
+    if((RIGHT_ENCODER_FLAG+LEFT_ENCODER_FLAG)==2)
     {
-      a=0;
-      b=0;
-      L_enable_val=255;
-      R_enable_val=255;
+      RIGHT_ENCODER_FLAG=0;
+      LEFT_ENCODER_FLAG=0;
+      LEFT_MOTOR_SPEED=255;
+      RIGHT_MOTOR_SPEED=255;
       return;
     }
   }
@@ -301,146 +274,136 @@ void turn_right()
 {
     // turn right and go one block ahead
     // need to do some axis checking with maze and edit
-    
+
     // Distance between centres of the 2 wheels~~101mm
     // Quarter circle traversed by each wheel=pi*50.5/2=79.32mm
-    
-    int flag1=0;
-    int flag2=0;
-    long distance=372*1.02+abs(myEnc2.read());
-    long oldPosition1  = -999;
-    long oldPosition2  = -999;
-    long newPosition1=0;
-    long newPosition2=0;
-    
-        if (newPosition1 != oldPosition1) 
+
+    RIGHT_ENCODER_FLAG=0;
+    LEFT_ENCODER_FLAG=0;
+    long distance=372*1.02+abs(ENCODER_LEFT.read());
+    long OldPositionRight  = -999;
+    long OldPositionLeft  = -999;
+    long NewPositionRight=0;
+    long NewPositionLeft=0;
+
+        if (NewPositionRight != OldPositionRight)
         {
-          oldPosition1 = newPosition1;
-          Serial.println(newPosition1);
+          OldPositionRight = NewPositionRight;
         }
-        if (newPosition2 != oldPosition2) 
+        if (NewPositionLeft != OldPositionLeft)
         {
-          oldPosition2 = newPosition2;
-          Serial.println(newPosition2);
+          OldPositionLeft = NewPositionLeft;
         }
-    while(flag1+flag2<2)
+    while(RIGHT_ENCODER_FLAG+LEFT_ENCODER_FLAG<2)
     {
-      if(flag1!=1)
+      if(RIGHT_ENCODER_FLAG!=1)
       {
-        analogWrite(RIGHT_MOTOR_2,255); 
+        analogWrite(RIGHT_MOTOR_2,255);
         analogWrite(RIGHT_MOTOR_1,0);
       }
-      if(flag2!=1)
-      { 
-        analogWrite(LEFT_MOTOR_2,0); 
+      if(LEFT_ENCODER_FLAG!=1)
+      {
+        analogWrite(LEFT_MOTOR_2,0);
         analogWrite(LEFT_MOTOR_1,255);
       }
-      if(newPosition2<distance)
+      if(NewPositionLeft<distance)
       {
-        newPosition2 = abs(myEnc2.read());
-        if (newPosition2 != oldPosition2) 
+        NewPositionLeft = abs(ENCODER_LEFT.read());
+        if (NewPositionLeft != OldPositionLeft)
         {
-          oldPosition2 = newPosition2;
-          Serial.println(newPosition2);
+          OldPositionLeft = NewPositionLeft;
         }
       }
       else
         {
-          flag2=1;
-          analogWrite(LEFT_MOTOR_2,0); 
+          LEFT_ENCODER_FLAG=1;
+          analogWrite(LEFT_MOTOR_2,0);
           analogWrite(LEFT_MOTOR_1,0);
         }
-      if(newPosition1<distance)
+      if(NewPositionRight<distance)
       {
-        newPosition1 = abs(myEnc2.read());
-        if (newPosition1 != oldPosition1) 
+        NewPositionRight = abs(ENCODER_LEFT.read());
+        if (NewPositionRight != OldPositionRight)
         {
-          oldPosition1 = newPosition1;
-          Serial.println(newPosition2);
+          OldPositionRight = NewPositionRight;
         }
       }
       else
         {
-          flag1=1;
-          analogWrite(RIGHT_MOTOR_2,0); 
+          RIGHT_ENCODER_FLAG=1;
+          analogWrite(RIGHT_MOTOR_2,0);
           analogWrite(RIGHT_MOTOR_1,0);
        }
     }
-     //r+=1;     
 }
 
 void turn_left()
 {
     // turn left and go one block ahead
     // need to do some axis checking with maze and edit
-    
+
     //   Distance between centres of the 2 wheels~~101mm
     //   Quarter circle traversed by each wheel=pi*50.5/2=79.32mm
-    
-    int flag1=0;
-    int flag2=0;
-    long distance=420+abs(myEnc1.read());    //Though actual value is 345, I had to compensate for slipping
-    long oldPosition1  = -999;
-    long oldPosition2  = -999;
-    long newPosition1=0;
-    long newPosition2=0;
-    
-        if (newPosition1 != oldPosition1) 
+
+    RIGHT_ENCODER_FLAG=0;
+    LEFT_ENCODER_FLAG=0;
+    long distance=420+abs(ENCODER_RIGHT.read());    //Though actual value is 345, I had to compensate for slipping
+    long OldPositionRight  = -999;
+    long OldPositionLeft  = -999;
+    long NewPositionRight=0;
+    long NewPositionLeft=0;
+
+        if (NewPositionRight != OldPositionRight)
         {
-          oldPosition1 = newPosition1;
-          Serial.println(newPosition1);
+          OldPositionRight = NewPositionRight;
         }
-        if (newPosition2 != oldPosition2) 
+        if (NewPositionLeft != OldPositionLeft)
         {
-          oldPosition2 = newPosition2;
-          Serial.println(newPosition2);
+          OldPositionLeft = NewPositionLeft;
         }
-    while(flag1+flag2<2)
+    while(RIGHT_ENCODER_FLAG+LEFT_ENCODER_FLAG<2)
     {
-      if(flag1!=1)
+      if(RIGHT_ENCODER_FLAG!=1)
       {
-        analogWrite(5,0); 
+        analogWrite(5,0);
         analogWrite(RIGHT_MOTOR_1,255);
       }
       if(flag2!=1)
-      { 
-        analogWrite(LEFT_MOTOR_2,255); 
+      {
+        analogWrite(LEFT_MOTOR_2,255);
         analogWrite(LEFT_MOTOR_1,0);
       }
-      if(newPosition2<distance)
+      if(NewPositionLeft<distance)
       {
-        newPosition2 = abs(myEnc1.read());
-        if (newPosition2 != oldPosition2) 
+        NewPositionLeft = abs(ENCODER_RIGHT.read());
+        if (NewPositionLeft != OldPositionLeft)
         {
-          oldPosition2 = newPosition2;
-          Serial.println(newPosition2);
+          OldPositionLeft = NewPositionLeft;
         }
       }
       else
         {
-          flag2=1;
-          analogWrite(LEFT_MOTOR_2,0); 
+          LEFT_ENCODER_FLAG=1;
+          analogWrite(LEFT_MOTOR_2,0);
           analogWrite(LEFT_MOTOR_1,0);
         }
-      if(newPosition1<distance)
+      if(NewPositionRight<distance)
       {
-        newPosition1 = abs(myEnc1.read());
-        if (newPosition1 != oldPosition1) 
+        NewPositionRight = abs(ENCODER_RIGHT.read());
+        if (NewPositionRight != OldPositionRight)
         {
-          oldPosition1 = newPosition1;
-          Serial.println(newPosition2);
+          OldPositionRight = NewPositionRight;
         }
       }
       else
         {
-          flag1=1;
-          analogWrite(RIGHT_MOTOR_2,0); 
+          RIGHT_ENCODER_FLAG=1;
+          analogWrite(RIGHT_MOTOR_2,0);
           analogWrite(RIGHT_MOTOR_1,0);
        }
     }
-     //l+=1;     
 }
- 
+
 void drive_straight( float distance_right, float distance_left) //To be included in Forward
 {
   static int Kp = 32, Ki = 1, Kd = 4;      // constants for scaling P I D effects (will need adjusting)
@@ -448,7 +411,7 @@ void drive_straight( float distance_right, float distance_left) //To be included
   int total;
 
   error = distance_left - distance_right;
-  if((abs(error)<error_threshold)&&abs(error)>0.2)
+  if((abs(error)<ERROR_THRESHOLD)&&abs(error)>0.2)
     {
       P = error * Kp;
 
@@ -460,41 +423,37 @@ void drive_straight( float distance_right, float distance_left) //To be included
       total = (P+I+D);
 
       {
-        L_enable_val -= (total);
-        L_enable_val = constrain(L_enable_val, 120, 255);   // may need to adjust
+        LEFT_MOTOR_SPEED -= (total);
+        LEFT_MOTOR_SPEED = constrain(LEFT_MOTOR_SPEED, 120, 255);   // may need to adjust
 
-        R_enable_val += (total);
-        R_enable_val = constrain(R_enable_val, 120, 255);
+        RIGHT_MOTOR_SPEED += (total);
+        RIGHT_MOTOR_SPEED = constrain(RIGHT_MOTOR_SPEED, 120, 255);
 
-        analogWrite(LEFT_MOTOR_ENABLE, L_enable_val);      // enable pins and values
+        analogWrite(LEFT_MOTOR_ENABLE, LEFT_MOTOR_SPEED);      // enable pins and values
                                                            // must be global
-        analogWrite(RIGHT_MOTOR_ENABLE, R_enable_val);    
+        analogWrite(RIGHT_MOTOR_ENABLE, RIGHT_MOTOR_SPEED);
     }
   }
-  //Serial.print("R:");
-  //Serial.print(R_enable_val);
-  //Serial.print(" L:");
-  //Serial.println(L_enable_val);
-  L_enable_val=255;
-  R_enable_val=255;   
+  LEFT_MOTOR_SPEED=255;
+  RIGHT_MOTOR_SPEED=255;
 }
 
 
 
-float f()
+float Forward_Distance()
 {
-  SharpIR SharpIR(front_ir, model);  
+  SharpIR SharpIR(FRONT_IR_PIN, IR_MODEL);
   return SharpIR.distance();
 }
 
-float l()
+float Left_Distance()
 {
-  SharpIR SharpIR(left_ir, model);  
+  SharpIR SharpIR(LEFT_IR_PIN, IR_MODEL);
   return (SharpIR.distance() + 0.45); //accounting for difference in values
 }
 
-float r()
+float Right_Distance()
 {
-  SharpIR SharpIR(right_ir, model);  
+  SharpIR SharpIR(RIGHT_IR_PIN, IR_MODEL);
   return SharpIR.distance();
 }
