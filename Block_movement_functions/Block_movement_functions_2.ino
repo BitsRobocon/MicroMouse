@@ -36,8 +36,13 @@ int b=0;
 int L_enable_val=255;   //ENABLE Pins Values
 int R_enable_val=255;
 
+static int previous_error = 0;    //Error used in PID
+
 void go_forward(long);
-void drive_straight(float, float);
+void go_backward(long);
+void turn_right();
+void turn_left();
+void drive_straight(float, float);  //Right and Left IR values respectively
 
 #define front_ir A0
 #define left_ir A1
@@ -50,7 +55,7 @@ void drive_straight(float, float);
 
 
 void setup() {
-  Serial.begin(9600);
+  Serial.begin(9600);    
 }
 
 void loop() 
@@ -58,7 +63,7 @@ void loop()
 
 void go_forward(long distance) 
 {
-  distance=((distance*820)/(3*3.141593))*0.96;
+  distance=((distance*820)/(3*3.141593));
   long distance1=abs(myEnc1.read());
   long distance2=abs(myEnc2.read());   
  /* if(l==1)
@@ -77,6 +82,14 @@ void go_forward(long distance)
   long newPosition2=0;
   while((a+b)!=2)
   {
+    if ( f()<6)
+    {
+      analogWrite(LEFT_MOTOR_1,0);
+      analogWrite(LEFT_MOTOR_2,0);
+      analogWrite(RIGHT_MOTOR_1,0);
+      analogWrite(RIGHT_MOTOR_2,0);
+      return;
+    }
     drive_straight(r(),l());
     if(newPosition1<distance*0.5+distance1)
     {
@@ -84,31 +97,31 @@ void go_forward(long distance)
       if (newPosition1 != oldPosition1) 
       {
         oldPosition1 = newPosition1;
-        Serial.println(newPosition1);
+        Serial.println(-newPosition1);
       }
-      analogWrite(RIGHT_MOTOR_1,255);
+      analogWrite(RIGHT_MOTOR_1,222);
       analogWrite(RIGHT_MOTOR_2,0);
     }
     else if(newPosition1>(distance*0.5+distance1)&&newPosition1<(distance*0.7+distance1))
     {
-      analogWrite(RIGHT_MOTOR_1,100);
+      analogWrite(RIGHT_MOTOR_1,132);
       analogWrite(RIGHT_MOTOR_2,0); 
       newPosition1 = abs(myEnc1.read());
       if (newPosition1 != oldPosition1) 
       {
         oldPosition1 = newPosition1;
-        Serial.println(newPosition1);
+        Serial.println(-newPosition1);
       }
     }
-    else if(newPosition1>(distance*0.7+distance1)&&newPosition1<(distance+distance1))
+    else if((newPosition1>(distance*0.7+distance1)&&newPosition1<(distance+distance1))&&!(b==1&&previous_error<0.2))
     {
-      analogWrite(RIGHT_MOTOR_1,60);
+      analogWrite(RIGHT_MOTOR_1,88);
       analogWrite(RIGHT_MOTOR_2,0); 
       newPosition1 = abs(myEnc1.read());
       if (newPosition1 != oldPosition1) 
       {
         oldPosition1 = newPosition1;
-        Serial.println(newPosition1);
+        Serial.println(-newPosition1);
       }
     }
     else
@@ -132,7 +145,7 @@ void go_forward(long distance)
     }
     else if(newPosition2>(distance*0.5+distance2)&&newPosition2<(distance*0.7+distance2))
     {
-      analogWrite(LEFT_MOTOR_1,100);
+      analogWrite(LEFT_MOTOR_1,150);
       analogWrite(LEFT_MOTOR_2,0); 
       newPosition2 = abs(myEnc2.read());
       if (newPosition2 != oldPosition2) 
@@ -141,9 +154,9 @@ void go_forward(long distance)
         Serial.println(newPosition2);
       }
     }
-    else if(newPosition2>(distance*0.7+distance2)&&newPosition2<(distance+distance2))
+    else if((newPosition2>(distance*0.7+distance2)&&newPosition2<(distance+distance2))&&!(a==1&&previous_error<0.2))
     {
-      analogWrite(LEFT_MOTOR_1,60);
+      analogWrite(LEFT_MOTOR_1,98);
       analogWrite(LEFT_MOTOR_2,0); 
       newPosition2 = abs(myEnc2.read());
       if (newPosition2 != oldPosition2) 
@@ -163,91 +176,127 @@ void go_forward(long distance)
     {
       a=0;
       b=0;
-      //L_enable_val=255;
-      //R_enable_val=255;
+      L_enable_val=255;
+      R_enable_val=255;
       return;
     }
   }
  }
 
-/******************************************************************************
- void go_backward(long distance,long oldPosition1=-999,long oldPosition2=-999) 
+void go_backward(long distance) 
 {
-  //long distance=1392;
-  long newPosition1=0;
-  long newPosition2=0;
-  if(newPosition1<distance*0.5)
-  {
-    newPosition1 = abs(myEnc1.read());
-    if (newPosition1 != oldPosition1) 
-    {
-      oldPosition1 = newPosition1;
-      Serial.println(newPosition1);
-    }
-  }
-  if(newPosition2<distance*0.5)
-  {
-    newPosition2 = abs(myEnc2.read());
-    if (newPosition2 != oldPosition2) 
-    {
-      oldPosition2 = newPosition2;
-      Serial.println(newPosition2);
-    }
-  }
-  if(newPosition1>(distance*0.5)&&newPosition1<distance*0.7)
-  {
-    analogWrite(RIGHT_MOTOR_2,100); 
-    newPosition1 = myEnc1.read();
-    if (newPosition1 != oldPosition1) 
-    {
-      oldPosition1 = newPosition1;
-      Serial.println(newPosition1);
-    }
-  }
-  if(newPosition2>(distance*0.5)&&newPosition2<distance*0.7)
-  {
-    analogWrite(LEFT_MOTOR_2,100); 
-    newPosition2 = abs(myEnc2.read());
-    if (newPosition2 != oldPosition2) 
-    {
-      oldPosition2 = newPosition2;
-      Serial.println(newPosition2);
-    }
-  }
-  if(newPosition1>(distance*0.7)&&newPosition1<distance*0.85)
-  {
-    analogWrite(RIGHT_MOTOR_2,70); 
-    newPosition1 = abs(myEnc1.read());
-    if (newPosition1 != oldPosition1) 
-    {
-      oldPosition1 = newPosition1;
-      Serial.println(newPosition1);
-    }
-  }
-  if(newPosition2>(distance*0.7)&&newPosition2<distance*0.85)
-  {
-    analogWrite(LEFT_MOTOR_2,70); 
-    newPosition2 = abs(myEnc2.read());
-    if (newPosition2 != oldPosition2) 
-    {
-      oldPosition2 = newPosition2;
-      Serial.println(newPosition2);
-    }
-  }
-  if(newPosition1>distance*0.85)
-  {
-    analogWrite(RIGHT_MOTOR_2,0);
-    a=1;
-  }
-  if(newPosition2>distance*0.85)      //NOT working properly, needs to be tuned
-  {
-    analogWrite(LEFT_MOTOR_2,0);
-    b=1;
-  }
-  go_backward(1392,oldPosition1,oldPosition2);
-}
+  distance=((distance*820)/(3*3.141593))*0.9;
+  long distance1=(myEnc1.read());
+  long distance2=(myEnc2.read());   
+ /* if(l==1)
+    distance=distance+abs(myEnc2.read());
+    
+  if(r==1)
+    distance1=abs(myEnc1.read());
 
-*******************************************************************************************/
+  if(f==1)
+    distance=distance+(abs(myEnc1.read()))+abs(myEnc1.read()/2);*/
+  
+  long oldPosition1=(-999);
+  long oldPosition2=(-999);
+  //long distance=1392;
+  long newPosition1=(myEnc1.read());
+  long newPosition2=(myEnc2.read());
+  while((a!=1)&&(b!=1))                //Some shortcoming is not allowing left motor to ro rotate fully
+  {
+    drive_straight(l(),r());
+    if(newPosition1>-distance*0.5+distance1)
+    {
+      newPosition1 = (myEnc1.read());
+      if (newPosition1 != oldPosition1) 
+      {
+        oldPosition1 = newPosition1;
+        Serial.println(newPosition1);
+      }
+      analogWrite(RIGHT_MOTOR_2,255);
+      analogWrite(RIGHT_MOTOR_1,0);
+    }
+    else if(newPosition1<(-distance*0.5+distance1)&&newPosition1>(-distance*0.7+distance1))
+    {
+      analogWrite(RIGHT_MOTOR_2,150);
+      analogWrite(RIGHT_MOTOR_1,0); 
+      newPosition1 = (myEnc1.read());
+      if (newPosition1 != oldPosition1) 
+      {
+        oldPosition1 = newPosition1;
+        Serial.println(newPosition1);
+      }
+    }
+    else if((newPosition1<(-distance*0.7+distance1)&&newPosition1>(-distance*0.85+distance1)))
+    {
+      analogWrite(RIGHT_MOTOR_2,123);
+      analogWrite(RIGHT_MOTOR_1,0); 
+      newPosition1 = abs(myEnc1.read());
+      if (newPosition1 != oldPosition1) 
+      {
+        oldPosition1 = newPosition1;
+        Serial.println(newPosition1);
+      }
+    }
+    else
+    {
+      analogWrite(RIGHT_MOTOR_2,0);
+      analogWrite(RIGHT_MOTOR_1,0);
+      Serial.println("a=1");
+      a=1;
+    }
+
+    if(newPosition2>-distance*0.5+distance2)
+    {
+      newPosition2 = (myEnc2.read());
+      if (newPosition2 != oldPosition2) 
+      {
+        oldPosition2 = newPosition2;
+        Serial.println(newPosition2);
+      }
+      analogWrite(LEFT_MOTOR_2,200);
+      analogWrite(LEFT_MOTOR_1,0);
+    }
+    else if(newPosition2<(-distance*0.5+distance2)&&newPosition2>(-distance*0.7+distance2))
+    {
+      analogWrite(LEFT_MOTOR_2,137);
+      analogWrite(LEFT_MOTOR_1,0); 
+      newPosition2 = (myEnc2.read());
+      if (newPosition2 != oldPosition2) 
+      {
+        oldPosition2 = newPosition2;
+        Serial.println(newPosition2);
+      }
+    }
+    else if((newPosition2<(-distance*0.7+distance2)&&newPosition2>(-distance+distance2)))
+    {
+      analogWrite(LEFT_MOTOR_2,125);
+      analogWrite(LEFT_MOTOR_1,0); 
+      newPosition2 = abs(myEnc2.read());
+      if (newPosition2 != oldPosition2) 
+      {
+        oldPosition2 = newPosition2;
+        Serial.println(newPosition2);
+      }
+    }
+    else 
+    {
+      analogWrite(LEFT_MOTOR_1,0);
+      analogWrite(LEFT_MOTOR_2,0);
+      Serial.println("b=1");
+      b=1;
+    }
+    if((a+b)==2)
+    {
+      a=0;
+      b=0;
+      L_enable_val=255;
+      R_enable_val=255;
+      return;
+    }
+  }
+ }
+
 void turn_right()
 {
     // turn right and go one block ahead
@@ -258,7 +307,7 @@ void turn_right()
     
     int flag1=0;
     int flag2=0;
-    long distance=360+abs(myEnc2.read());
+    long distance=372*1.02+abs(myEnc2.read());
     long oldPosition1  = -999;
     long oldPosition2  = -999;
     long newPosition1=0;
@@ -330,7 +379,7 @@ void turn_left()
     
     int flag1=0;
     int flag2=0;
-    long distance=360+abs(myEnc1.read());    //Though actual value is 345, I had to compensate for slipping
+    long distance=420+abs(myEnc1.read());    //Though actual value is 345, I had to compensate for slipping
     long oldPosition1  = -999;
     long oldPosition2  = -999;
     long newPosition1=0;
@@ -394,13 +443,12 @@ void turn_left()
  
 void drive_straight( float distance_right, float distance_left) //To be included in Forward
 {
-  static int previous_error = 0;
-  static int Kp = 25, Ki = 1, Kd = 4;      // constants for scaling P I D effects (will need adjusting)
+  static int Kp = 32, Ki = 1, Kd = 4;      // constants for scaling P I D effects (will need adjusting)
   static int error, P, I = 0,  D;          // error variables
   int total;
 
   error = distance_left - distance_right;
-  if((abs(error)<error_threshold)&&abs(error)>0.3)
+  if((abs(error)<error_threshold)&&abs(error)>0.2)
     {
       P = error * Kp;
 
@@ -430,6 +478,8 @@ void drive_straight( float distance_right, float distance_left) //To be included
   L_enable_val=255;
   R_enable_val=255;   
 }
+
+
 
 float f()
 {
