@@ -24,7 +24,7 @@
 
     void move_toward_goal(); // move to the adjacent square with minimum number (flood fill)
 
-
+    void print_maze();
 
 //  WALL DETECTION
 
@@ -202,39 +202,98 @@ void setup()
 
     pinMode(LEFT_MOTOR_2, OUTPUT);
 
-
-
-    initialize_maze();
 }
 
 
 
 void loop()
 {
+
     GOAL_ROW=(MAZE_SIZE/2);
     GOAL_COLUMN=(MAZE_SIZE/2);
+    initialize_maze();
 
     while(!((current_row==GOAL_ROW)&&(current_column==GOAL_COLUMN)))
     {
         update_walls();
         update_maze();
         move_toward_goal();
+        print_maze();
         delay(500);
     }
 
     GOAL_ROW=(MAZE_SIZE-1);
     GOAL_COLUMN=0;
+    initialize_maze();
 
     while(!((current_row==GOAL_ROW)&&(current_column==GOAL_COLUMN)))
     {
         update_walls();
         update_maze();
         move_toward_goal();
+        print_maze();
         delay(500);
     }
 }
 
-
+void print_maze()
+{
+    for(int i = 0; i < MAZE_SIZE; i++)
+    {
+        for(int j = 0; j < MAZE_SIZE; j++)
+        {
+            if(wall_maze[i][j][0]==1)
+            {
+                Serial.print("   --   ");
+            }
+            else
+            {
+                Serial.print("        ");
+            }
+        }
+        Serial.println();
+        for(int j = 0; j < MAZE_SIZE; j++)
+        {
+            if(wall_maze[i][j][1]==1)
+            {
+                Serial.print(" | ");
+            }
+            else
+            {
+                Serial.print("   ");
+            }
+            if(goal_maze[i][j]<10)
+            {
+                Serial.print(goal_maze[i][j]);
+            }
+            else
+            {
+                Serial.print(goal_maze[i][j]);
+            }
+            if(wall_maze[i][j][2]==1)
+            {
+                Serial.print(" | ");
+            }
+            else
+            {
+                Serial.print("   ");
+            }
+        }
+        Serial.println();
+        for(int j = 0; j < MAZE_SIZE; j++)
+        {
+            if(wall_maze[i][j][3]==1)
+            {
+                Serial.print("   --   ");
+            }
+            else
+            {
+                Serial.print("        ");
+            }
+        }
+        Serial.println();
+    }
+}
 
 void move_toward_goal()
 
@@ -474,11 +533,11 @@ void update_walls()
 
             wall_maze[current_row][current_column][0] = 1;
 
-            if((current_row+1)<(MAZE_SIZE-1))
+            if((current_row-1)>0)
 
             {
 
-                wall_maze[current_row + 1][current_column][3] = 1;
+                wall_maze[current_row - 1][current_column][3] = 1;
 
             }
 
@@ -550,11 +609,11 @@ void update_walls()
 
             wall_maze[current_row][current_column][3] = 1;
 
-            if((current_row-1)<(MAZE_SIZE-1))
+            if((current_row+1)<(MAZE_SIZE-1))
 
             {
 
-                wall_maze[current_row - 1][current_column][0] = 1;
+                wall_maze[current_row + 1][current_column][0] = 1;
 
             }
 
@@ -568,11 +627,11 @@ void update_walls()
 
             wall_maze[current_row][current_column][0] = 1;
 
-            if((current_row+1)<(MAZE_SIZE-1))
+            if((current_row-1)>0)
 
             {
 
-                wall_maze[current_row + 1][current_column][3] = 1;
+                wall_maze[current_row - 1][current_column][3] = 1;
 
             }
 
@@ -608,11 +667,11 @@ void update_walls()
 
             wall_maze[current_row][current_column][0] = 1;
 
-            if((current_row+1)<(MAZE_SIZE-1))
+            if((current_row-1)>0)
 
             {
 
-                wall_maze[current_row + 1][current_column][3] = 1;
+                wall_maze[current_row - 1][current_column][3] = 1;
 
             }
 
@@ -626,11 +685,11 @@ void update_walls()
 
             wall_maze[current_row][current_column][3] = 1;
 
-            if((current_row-1)<(MAZE_SIZE-1))
+            if((current_row+1)<(MAZE_SIZE-1))
 
             {
 
-                wall_maze[current_row - 1][current_column][0] = 1;
+                wall_maze[current_row + 1][current_column][0] = 1;
 
             }
 
@@ -1122,7 +1181,7 @@ bool check_wall_forward()
 
       {
 
-          return true;
+          return false;
 
       }
 
@@ -1130,7 +1189,7 @@ bool check_wall_forward()
 
       {
 
-          return false;
+          return true;
 
       }
 
@@ -1146,7 +1205,7 @@ bool check_wall_left()
 
       {
 
-          return true;
+          return false;
 
       }
 
@@ -1154,7 +1213,7 @@ bool check_wall_left()
 
       {
 
-          return false;
+          return true;
 
       }
 
@@ -1176,7 +1235,7 @@ bool check_wall_right()
 
       {
 
-          return true;
+          return false;
 
       }
 
@@ -1184,7 +1243,7 @@ bool check_wall_right()
 
       {
 
-          return false;
+          return true;
 
       }
 
@@ -1220,7 +1279,7 @@ void go_forward(long distance)
 
     {
 
-        if (Forward_Distance<THRESHOLD_FORWARD)
+        if (Forward_Distance()<THRESHOLD_FORWARD)
 
         {
 
